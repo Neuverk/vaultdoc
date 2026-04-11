@@ -1,12 +1,11 @@
 import { UserButton } from '@clerk/nextjs'
-import { auth, currentUser } from '@clerk/nextjs/server'
+import { currentUser } from '@clerk/nextjs/server'
 
 export default async function DashboardPage() {
   const user = await currentUser()
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Top bar */}
       <div className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
@@ -25,10 +24,7 @@ export default async function DashboardPage() {
         </div>
       </div>
 
-      {/* Main content */}
       <div className="max-w-7xl mx-auto px-6 py-8">
-
-        {/* Welcome */}
         <div className="mb-8">
           <h1 className="text-2xl font-bold text-gray-900">
             Welcome back{user?.firstName ? `, ${user.firstName}` : ''} 👋
@@ -38,13 +34,12 @@ export default async function DashboardPage() {
           </p>
         </div>
 
-        {/* Stats */}
         <div className="grid grid-cols-4 gap-4 mb-8">
           {[
-            { label: 'Documents', value: '0', color: 'blue' },
-            { label: 'Pending approval', value: '0', color: 'amber' },
-            { label: 'Compliance gaps', value: '—', color: 'red' },
-            { label: 'Audit readiness', value: '—', color: 'green' },
+            { label: 'Documents', value: '0' },
+            { label: 'Pending approval', value: '0' },
+            { label: 'Compliance gaps', value: '—' },
+            { label: 'Audit readiness', value: '—' },
           ].map((stat) => (
             <div key={stat.label} className="bg-white rounded-xl border border-gray-200 p-4">
               <div className="text-2xl font-bold text-gray-900">{stat.value}</div>
@@ -53,27 +48,26 @@ export default async function DashboardPage() {
           ))}
         </div>
 
-        {/* Quick actions */}
         <div className="bg-white rounded-xl border border-gray-200 p-6">
           <h2 className="text-base font-semibold text-gray-900 mb-4">Quick actions</h2>
           <div className="grid grid-cols-3 gap-4">
-            {[
-              { title: 'Create document', desc: 'SOP, Policy, Runbook and more', icon: '📄' },
-              { title: 'Run gap analysis', desc: 'Upload docs, find what is missing', icon: '🔍' },
-              { title: 'View audit score', desc: 'ISO 27001, TISAX, GDPR readiness', icon: '✅' },
-            ].map((action) => (
-              <div
-                key={action.title}
-                className="border border-gray-200 rounded-lg p-4 cursor-pointer hover:border-blue-400 hover:bg-blue-50 transition-all"
-              >
-                <div className="text-2xl mb-2">{action.icon}</div>
-                <div className="font-medium text-gray-900 text-sm">{action.title}</div>
-                <div className="text-xs text-gray-500 mt-1">{action.desc}</div>
-              </div>
-            ))}
+            <a href="/dashboard/documents/new" className="border border-gray-200 rounded-lg p-4 hover:border-blue-400 hover:bg-blue-50 transition-all block">
+              <div className="text-2xl mb-2">📄</div>
+              <div className="font-medium text-gray-900 text-sm">Create document</div>
+              <div className="text-xs text-gray-500 mt-1">SOP, Policy, Runbook and more</div>
+            </a>
+            <a href="/dashboard" className="border border-gray-200 rounded-lg p-4 hover:border-blue-400 hover:bg-blue-50 transition-all block">
+              <div className="text-2xl mb-2">🔍</div>
+              <div className="font-medium text-gray-900 text-sm">Run gap analysis</div>
+              <div className="text-xs text-gray-500 mt-1">Upload docs, find what is missing</div>
+            </a>
+            <a href="/dashboard" className="border border-gray-200 rounded-lg p-4 hover:border-blue-400 hover:bg-blue-50 transition-all block">
+              <div className="text-2xl mb-2">✅</div>
+              <div className="font-medium text-gray-900 text-sm">View audit score</div>
+              <div className="text-xs text-gray-500 mt-1">ISO 27001, TISAX, GDPR readiness</div>
+            </a>
           </div>
         </div>
-
       </div>
     </div>
   )
