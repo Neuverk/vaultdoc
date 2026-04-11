@@ -3,10 +3,12 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
-    "lint": "eslint"
+  "dev": "next dev",
+  "build": "next build",
+  "start": "next start",
+  "lint": "next lint",
+  "db:push": "dotenv-cli -e .env.local -- drizzle-kit push",
+  "db:studio": "dotenv-cli -e .env.local -- drizzle-kit studio"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.88.0",
