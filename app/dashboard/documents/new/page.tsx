@@ -20,6 +20,47 @@ const DOC_TYPES = [
   'Data Classification', 'DPIA', 'Audit Checklist',
 ]
 
+function buildHtmlContent(content: string) {
+  const lines = content.split('\n')
+  let inTable = false
+  let html = ''
+
+  for (const line of lines) {
+    if (!line.trim()) {
+      if (inTable) { html += '</table>'; inTable = false }
+      html += '<br>'
+    } else if (line.startsWith('# ')) {
+      html += `<h1>${line.replace('# ', '')}</h1>`
+    } else if (line.startsWith('## ')) {
+      html += `<h2>${line.replace('## ', '')}</h2>`
+    } else if (line.startsWith('### ')) {
+      html += `<h3>${line.replace('### ', '')}</h3>`
+    } else if (line.startsWith('- ') || line.startsWith('* ')) {
+      html += `<li>${line.replace(/^[-*] /, '')}</li>`
+    } else if (line.startsWith('|')) {
+      if (line.includes('---')) continue
+      if (!inTable) {
+        html += '<table style="width:100%;border-collapse:collapse;margin:16px 0">'
+        inTable = true
+      }
+      const cells = line.split('|').filter((_, i, a) => i > 0 && i < a.length - 1)
+      const isHeader = cells.some(c => c.includes('**'))
+      html += `<tr>${cells.map(cell => {
+        const tag = isHeader ? 'th' : 'td'
+        const style = isHeader
+          ? 'background:#0a1628;color:white;font-weight:600;padding:8px 12px;text-align:left;font-size:12px'
+          : 'border:1px solid #e5e7eb;padding:8px 12px;font-size:12px'
+        return `<${tag} style="${style}">${cell.replace(/\*\*/g, '').trim()}</${tag}>`
+      }).join('')}</tr>`
+    } else {
+      if (inTable) { html += '</table>'; inTable = false }
+      html += `<p>${line.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')}</p>`
+    }
+  }
+  if (inTable) html += '</table>'
+  return html
+}
+
 export default function NewDocumentPage() {
   const router = useRouter()
   const [form, setForm] = useState({
@@ -91,12 +132,10 @@ export default function NewDocumentPage() {
         alignment: AlignmentType.CENTER,
       }),
       new Paragraph({
-        children: [new TextRun({ text: `${form.type} · ${form.department} · ${form.frameworks.join(', ')}`, size: 20, color: '666666' })],
-        alignment: AlignmentType.CENTER,
-        spacing: { after: 200 },
-      }),
-      new Paragraph({
-        children: [new TextRun({ text: `Classification: ${form.confidentiality} · Language: ${form.language}`, size: 20, color: '666666' })],
+        children: [new TextRun({
+          text: `${form.type} · ${form.department} · ${form.frameworks.join(', ')}`,
+          size: 20, color: '666666'
+        })],
         alignment: AlignmentType.CENTER,
         spacing: { after: 400 },
       }),
@@ -113,8 +152,18 @@ export default function NewDocumentPage() {
         children.push(new Paragraph({ text: line.replace('### ', ''), heading: HeadingLevel.HEADING_3 }))
       } else if (line.startsWith('- ') || line.startsWith('* ')) {
         children.push(new Paragraph({ text: line.replace(/^[-*] /, ''), bullet: { level: 0 } }))
+      } else if (line.startsWith('|') && !line.includes('---')) {
+        const cells = line.split('|').filter((_, i, a) => i > 0 && i < a.length - 1)
+        children.push(new Paragraph({
+          children: cells.map(cell => new TextRun({
+            text: cell.replace(/\*\*/g, '').trim() + '  ',
+            bold: cell.includes('**'),
+          }))
+        }))
       } else if (line.startsWith('**') && line.endsWith('**')) {
-        children.push(new Paragraph({ children: [new TextRun({ text: line.replace(/\*\*/g, ''), bold: true })] }))
+        children.push(new Paragraph({
+          children: [new TextRun({ text: line.replace(/\*\*/g, ''), bold: true })]
+        }))
       } else {
         const parts = line.split(/(\*\*.*?\*\*)/)
         children.push(new Paragraph({
@@ -139,6 +188,8 @@ export default function NewDocumentPage() {
     const printWindow = window.open('', '_blank')
     if (!printWindow) return
 
+    const htmlContent = buildHtmlContent(content)
+
     const html = `
       <!DOCTYPE html>
       <html>
@@ -155,14 +206,12 @@ export default function NewDocumentPage() {
           th { background: #0a1628; color: white; padding: 8px 12px; text-align: left; }
           td { border: 1px solid #e5e7eb; padding: 8px 12px; }
           tr:nth-child(even) td { background: #f9fafb; }
-          .cover { text-align: center; margin-bottom: 48px; padding: 40px; background: linear-gradient(135deg, #0a1628, #1a3a6b); border-radius: 12px; color: white; }
+          .cover { text-align: center; margin-bottom: 48px; padding: 40px; background: #0a1628; border-radius: 12px; color: white; }
           .cover h1 { color: white; border: none; font-size: 28px; margin: 0 0 12px; }
           .cover .meta { font-size: 13px; opacity: 0.8; margin-top: 6px; }
           .conf-badge { display: inline-block; padding: 4px 16px; border-radius: 100px; font-size: 11px; font-weight: bold; background: rgba(255,255,255,0.2); color: white; margin-top: 12px; border: 1px solid rgba(255,255,255,0.3); }
           .footer { margin-top: 48px; padding-top: 16px; border-top: 1px solid #e5e7eb; font-size: 11px; color: #9ca3af; text-align: center; }
-          code { background: #f3f4f6; padding: 2px 6px; border-radius: 4px; font-size: 12px; }
-          pre { background: #f3f4f6; padding: 16px; border-radius: 8px; font-size: 12px; overflow-x: auto; }
-          @media print { body { margin: 0; } .cover { -webkit-print-color-adjust: exact; } }
+          @media print { body { margin: 0; } .cover { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
         </style>
       </head>
       <body>
@@ -173,18 +222,7 @@ export default function NewDocumentPage() {
           <div class="meta">Language: ${form.language} · Version: 1.0 · Generated by Vaultdoc</div>
           <div class="conf-badge">${form.confidentiality.toUpperCase()}</div>
         </div>
-        ${content
-          .split('\n')
-          .map(line => {
-            if (!line.trim()) return '<br>'
-            if (line.startsWith('# ')) return `<h1>${line.replace('# ', '')}</h1>`
-            if (line.startsWith('## ')) return `<h2>${line.replace('## ', '')}</h2>`
-            if (line.startsWith('### ')) return `<h3>${line.replace('### ', '')}</h3>`
-            if (line.startsWith('- ') || line.startsWith('* ')) return `<li>${line.replace(/^[-*] /, '')}</li>`
-            if (line.startsWith('|')) return `<div style="font-family:monospace;font-size:12px;padding:2px 0;border-bottom:1px solid #f0f0f0">${line}</div>`
-            return `<p>${line.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')}</p>`
-          })
-          .join('\n')}
+        ${htmlContent}
         <div class="footer">
           Generated by Vaultdoc by Neuverk · ${new Date().toLocaleDateString()} · ${form.confidentiality}
         </div>
@@ -218,7 +256,6 @@ export default function NewDocumentPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Top bar */}
       <div className="bg-white border-b border-gray-200 px-6 py-3 flex items-center gap-3">
         <button
           onClick={() => router.push('/dashboard')}
@@ -262,7 +299,6 @@ export default function NewDocumentPage() {
       <div className={`mx-auto px-6 py-6 ${fullscreen ? 'max-w-full' : 'max-w-8xl'}`}>
         <div className={`grid gap-6 ${done ? 'grid-cols-[380px_1fr]' : 'grid-cols-1 max-w-2xl mx-auto'}`}>
 
-          {/* LEFT — Form */}
           <div className="space-y-4">
             <div>
               <h1 className="text-lg font-bold text-gray-900">Create document</h1>
@@ -398,7 +434,6 @@ export default function NewDocumentPage() {
             </button>
           </div>
 
-          {/* RIGHT — Editor */}
           {done && (
             <div className="flex flex-col min-h-0">
               <div className="flex items-center justify-between mb-2">
@@ -416,7 +451,6 @@ export default function NewDocumentPage() {
                   {fullscreen ? '⊠ Normal' : '⊞ Wide'}
                 </button>
               </div>
-
               <div data-color-mode="light" style={{ height: 'calc(100vh - 180px)' }}>
                 <MDEditor
                   value={content}
@@ -431,10 +465,7 @@ export default function NewDocumentPage() {
             </div>
           )}
 
-          {/* Empty state */}
-          {!done && !generating && (
-            <div className="hidden" />
-          )}
+          {!done && !generating && <div className="hidden" />}
 
           {generating && (
             <div className="flex items-center justify-center bg-white border border-gray-200 rounded-xl min-h-64">
@@ -445,7 +476,6 @@ export default function NewDocumentPage() {
               </div>
             </div>
           )}
-
         </div>
       </div>
     </div>
