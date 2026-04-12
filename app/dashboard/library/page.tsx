@@ -1,21 +1,17 @@
-import { auth, currentUser } from '@clerk/nextjs/server'
+import { auth } from '@clerk/nextjs/server'
 import { db } from '@/lib/db'
-import { documents, users, tenants } from '@/lib/db/schema'
+import { documents, users } from '@/lib/db/schema'
 import { eq } from 'drizzle-orm'
-import Link from 'next/link'
-import { UserButton } from '@clerk/nextjs'
+import Navbar from '@/components/navbar'
 
 export default async function LibraryPage() {
   const { userId } = await auth()
-  const user = await currentUser()
-
   let docs: any[] = []
 
   try {
     const dbUser = await db.query.users.findFirst({
       where: eq(users.clerkId, userId!),
     })
-
     if (dbUser) {
       docs = await db.query.documents.findMany({
         where: eq(documents.tenantId, dbUser.tenantId!),
@@ -42,29 +38,12 @@ export default async function LibraryPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Top bar */}
-      <div className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-            <span className="text-white text-sm font-bold">V</span>
-          </div>
-          <span className="font-semibold text-gray-900">Vaultdoc</span>
-          <span className="text-xs text-gray-400 ml-1">by Neuverk</span>
-        </div>
-        <div className="flex items-center gap-3">
-          <span className="text-sm text-gray-600">
-            {user?.firstName || user?.emailAddresses[0]?.emailAddress}
-          </span>
-          <UserButton />
-        </div>
-      </div>
-
+      <Navbar />
       <div className="max-w-7xl mx-auto px-6 py-8">
-        {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div>
             <div className="flex items-center gap-2 text-sm text-gray-500 mb-1">
-              <Link href="/dashboard" className="hover:text-gray-900">Dashboard</Link>
+              <a href="/dashboard" className="hover:text-gray-900">Dashboard</a>
               <span>/</span>
               <span className="text-gray-900">Document library</span>
             </div>
@@ -73,58 +52,39 @@ export default async function LibraryPage() {
               {docs.length} document{docs.length !== 1 ? 's' : ''} total
             </p>
           </div>
-          <Link
-            href="/dashboard/documents/new"
-            className="bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2 rounded-lg flex items-center gap-2"
-          >
+          <a href="/dashboard/documents/new" className="bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2 rounded-lg">
             + New document
-          </Link>
+          </a>
         </div>
 
-        {/* Empty state */}
         {docs.length === 0 && (
           <div className="bg-white rounded-xl border border-gray-200 p-16 text-center">
             <div className="text-5xl mb-4">📄</div>
             <h2 className="text-lg font-semibold text-gray-900 mb-2">No documents yet</h2>
-            <p className="text-sm text-gray-500 mb-6">
-              Create your first AI-generated compliance document
-            </p>
-            <Link
-              href="/dashboard/documents/new"
-              className="bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-6 py-2.5 rounded-lg inline-block"
-            >
+            <p className="text-sm text-gray-500 mb-6">Create your first AI-generated compliance document</p>
+            <a href="/dashboard/documents/new" className="bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-6 py-2.5 rounded-lg inline-block">
               Create document
-            </Link>
+            </a>
           </div>
         )}
 
-        {/* Document table */}
         {docs.length > 0 && (
           <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-            {/* Filters */}
             <div className="px-4 py-3 border-b border-gray-200 flex items-center gap-3">
-              <input
-                type="text"
-                placeholder="Search documents..."
-                className="flex-1 border border-gray-300 rounded-lg px-3 py-1.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
+              <input type="text" placeholder="Search documents..." className="flex-1 border border-gray-300 rounded-lg px-3 py-1.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500" />
               <select className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm text-gray-900 bg-white focus:outline-none">
                 <option>All types</option>
                 <option>SOP</option>
                 <option>Policy</option>
                 <option>Runbook</option>
-                <option>IR Plan</option>
               </select>
               <select className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm text-gray-900 bg-white focus:outline-none">
                 <option>All status</option>
                 <option>Draft</option>
-                <option>Under review</option>
                 <option>Approved</option>
                 <option>Effective</option>
               </select>
             </div>
-
-            {/* Table */}
             <table className="w-full">
               <thead>
                 <tr className="bg-gray-50 border-b border-gray-200">
@@ -142,21 +102,15 @@ export default async function LibraryPage() {
                   <tr key={doc.id} className="hover:bg-gray-50 transition-colors">
                     <td className="px-4 py-3">
                       <div className="font-medium text-gray-900 text-sm">{doc.title}</div>
-                      {doc.docId && (
-                        <div className="text-xs text-gray-400 font-mono mt-0.5">{doc.docId}</div>
-                      )}
+                      {doc.docId && <div className="text-xs text-gray-400 font-mono mt-0.5">{doc.docId}</div>}
                     </td>
                     <td className="px-4 py-3">
-                      <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded-full font-medium">
-                        {doc.type}
-                      </span>
+                      <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded-full font-medium">{doc.type}</span>
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex flex-wrap gap-1">
                         {doc.frameworks?.slice(0, 2).map((fw: string) => (
-                          <span key={fw} className="text-xs bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full">
-                            {fw}
-                          </span>
+                          <span key={fw} className="text-xs bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full">{fw}</span>
                         ))}
                         {doc.frameworks?.length > 2 && (
                           <span className="text-xs text-gray-400">+{doc.frameworks.length - 2}</span>
@@ -178,12 +132,8 @@ export default async function LibraryPage() {
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2">
-                        <button className="text-xs text-blue-600 hover:text-blue-700 font-medium">
-                          View
-                        </button>
-                        <button className="text-xs text-gray-400 hover:text-gray-600">
-                          Edit
-                        </button>
+                        <button className="text-xs text-blue-600 hover:text-blue-700 font-medium">View</button>
+                        <button className="text-xs text-gray-400 hover:text-gray-600">Edit</button>
                       </div>
                     </td>
                   </tr>
