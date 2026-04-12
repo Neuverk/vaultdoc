@@ -171,7 +171,7 @@ ${form.tools ? `Tools/Systems: ${form.tools}` : ''}`
   const generateDocument = async (meta: any, conversationMessages: Message[]) => {
     setPhase('generating')
     try {
-      const res = await fetch('/api/documents/generate-from-chat', {
+      const res = await fetch('/api/documents/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ meta: { ...form, ...meta }, messages: conversationMessages }),
