@@ -21,15 +21,17 @@ export async function POST(req: NextRequest) {
     scope, purpose, tools, tone, language, confidentiality } = body
 
   try {
-    // Get or create tenant
+    // ✅ Per-user unique tenant slug
+    const tenantSlug = `user-${userId}`
+
     let tenant = await db.query.tenants.findFirst({
-      where: eq(tenants.slug, 'default'),
+      where: eq(tenants.slug, tenantSlug),
     })
 
     if (!tenant) {
       const [newTenant] = await db.insert(tenants).values({
-        name: 'My Organisation',
-        slug: 'default',
+        name: `${clerkUser.firstName || 'My'} Organisation`,
+        slug: tenantSlug,
         plan: 'free',
       }).returning()
       tenant = newTenant
@@ -44,7 +46,7 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    // Get or create user
+    // ✅ Get or create user — always link to their own tenant
     let user = await db.query.users.findFirst({
       where: eq(users.clerkId, userId),
     })
@@ -59,6 +61,12 @@ export async function POST(req: NextRequest) {
         role: 'admin',
       }).returning()
       user = newUser
+    } else if (user.tenantId !== tenant.id) {
+      // ✅ Fix existing users pointing to wrong tenant
+      await db.update(users)
+        .set({ tenantId: tenant.id })
+        .where(eq(users.clerkId, userId))
+      user = { ...user, tenantId: tenant.id }
     }
 
     // Save document

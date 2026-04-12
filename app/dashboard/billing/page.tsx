@@ -13,30 +13,84 @@ export default async function BillingPage() {
     where: eq(users.clerkId, userId),
   })
 
-  const tenant = user ? await db.query.tenants.findFirst({
-    where: eq(tenants.id, user.tenantId!),
-  }) : null
+  const tenant = user
+    ? await db.query.tenants.findFirst({
+        where: eq(tenants.id, user.tenantId!),
+      })
+    : null
 
   const plan = (tenant?.plan ?? 'free') as PlanType
   const planDetails = PLANS[plan]
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="max-w-4xl mx-auto px-6 py-8">
-        <div className="mb-8">
-          <h1 className="text-2xl font-bold text-gray-900">Billing & Plan</h1>
-          <p className="text-gray-500 mt-1">Manage your subscription and usage.</p>
-        </div>
+      <div className="mx-auto max-w-5xl space-y-8 px-6 py-8">
+        <section className="rounded-3xl border border-gray-200 bg-white p-8 shadow-sm">
+          <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+            <div>
+              <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-gray-200 bg-gray-50 px-3 py-1.5 text-xs font-medium text-gray-600">
+                <span className="h-1.5 w-1.5 rounded-full bg-gray-400" />
+                Billing workspace
+              </div>
 
-        <div className="bg-white rounded-xl border border-gray-200 p-6 mb-6">
-          <p className="text-sm text-gray-500">Current Plan</p>
-          <p className="mt-1 text-xl font-semibold text-gray-900">{planDetails.name}</p>
-          {tenant?.stripeCurrentPeriodEnd && (
-            <p className="text-sm text-gray-500 mt-1">
-              Renews {new Date(tenant.stripeCurrentPeriodEnd).toLocaleDateString('de-DE')}
-            </p>
-          )}
-        </div>
+              <h1 className="text-3xl font-semibold tracking-tight text-gray-900">
+                Billing &amp; Plan
+              </h1>
+
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-gray-600">
+                Manage your subscription, review your current plan, and upgrade your
+                workspace when you need more document capacity and features.
+              </p>
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="rounded-2xl border border-gray-200 bg-gray-50 px-5 py-4">
+                <div className="text-xs font-medium uppercase tracking-[0.12em] text-gray-500">
+                  Current plan
+                </div>
+                <div className="mt-1 text-sm font-semibold text-gray-900">
+                  {planDetails.name}
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-gray-200 bg-gray-50 px-5 py-4">
+                <div className="text-xs font-medium uppercase tracking-[0.12em] text-gray-500">
+                  Billing status
+                </div>
+                <div className="mt-1 text-sm font-semibold text-gray-900">
+                  {tenant?.stripeCurrentPeriodEnd ? 'Active subscription' : 'No renewal set'}
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-500">Current Plan</p>
+              <p className="mt-1 text-2xl font-semibold tracking-tight text-gray-900">
+                {planDetails.name}
+              </p>
+
+              {tenant?.stripeCurrentPeriodEnd && (
+                <p className="mt-2 text-sm text-gray-600">
+                  Renews{' '}
+                  {new Date(tenant.stripeCurrentPeriodEnd).toLocaleDateString('de-DE')}
+                </p>
+              )}
+            </div>
+
+            <div className="rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3">
+              <div className="text-xs font-medium uppercase tracking-[0.12em] text-gray-500">
+                Workspace plan
+              </div>
+              <div className="mt-1 text-sm font-semibold text-gray-900 capitalize">
+                {plan}
+              </div>
+            </div>
+          </div>
+        </section>
 
         <BillingClient currentPlan={plan} tenantId={tenant?.id ?? ''} />
       </div>
