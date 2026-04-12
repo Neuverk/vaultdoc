@@ -50,9 +50,9 @@ export default async function DashboardPage() {
               </h1>
 
               <p className="mt-2 max-w-2xl text-sm leading-6 text-gray-600">
-                Your compliance documentation platform is ready. Create new
-                policies, manage documentation, and monitor your workspace from
-                one central dashboard.
+                Create, organize, and manage professional documents from one central workspace.
+                VaultDoc is built for teams across operations, compliance, HR, finance, legal,
+                security, and more.
               </p>
             </div>
 
@@ -75,7 +75,7 @@ export default async function DashboardPage() {
                 </div>
               </div>
 
-              <div className="rounded-2xl border border-gray-200 bg-gray-50 px-4 py-4 col-span-2 sm:col-span-1">
+              <div className="col-span-2 rounded-2xl border border-gray-200 bg-gray-50 px-4 py-4 sm:col-span-1">
                 <div className="text-xs font-medium uppercase tracking-[0.12em] text-gray-500">
                   Status
                 </div>
@@ -118,7 +118,7 @@ export default async function DashboardPage() {
             className="group rounded-2xl border border-gray-200 bg-white p-6 shadow-sm transition hover:border-gray-300 hover:shadow-md"
           >
             <div className="mb-5 flex items-start justify-between">
-              <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-gray-200 bg-gray-50 text-gray-700">
+              <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-blue-100 bg-blue-50 text-blue-700">
                 <svg
                   className="h-5 w-5"
                   fill="none"
@@ -148,7 +148,7 @@ export default async function DashboardPage() {
           </Link>
 
           <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
-            <div className="mb-5 flex h-11 w-11 items-center justify-center rounded-xl border border-gray-200 bg-gray-50 text-gray-700">
+            <div className="mb-5 flex h-11 w-11 items-center justify-center rounded-xl border border-amber-100 bg-amber-50 text-amber-700">
               <svg
                 className="h-5 w-5"
                 fill="none"
@@ -171,7 +171,7 @@ export default async function DashboardPage() {
           </div>
 
           <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
-            <div className="mb-5 flex h-11 w-11 items-center justify-center rounded-xl border border-gray-200 bg-gray-50 text-gray-700">
+            <div className="mb-5 flex h-11 w-11 items-center justify-center rounded-xl border border-rose-100 bg-rose-50 text-rose-700">
               <svg
                 className="h-5 w-5"
                 fill="none"
@@ -194,7 +194,7 @@ export default async function DashboardPage() {
           </div>
 
           <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
-            <div className="mb-5 flex h-11 w-11 items-center justify-center rounded-xl border border-gray-200 bg-gray-50 text-gray-700">
+            <div className="mb-5 flex h-11 w-11 items-center justify-center rounded-xl border border-emerald-100 bg-emerald-50 text-emerald-700">
               <svg
                 className="h-5 w-5"
                 fill="none"
@@ -243,7 +243,7 @@ export default async function DashboardPage() {
                 className={`mb-4 flex h-11 w-11 items-center justify-center rounded-xl border ${
                   isAtLimit
                     ? 'border-amber-200 bg-white text-amber-700'
-                    : 'border-gray-200 bg-white text-gray-700'
+                    : 'border-slate-200 bg-slate-50 text-slate-700'
                 }`}
               >
                 <svg
@@ -267,7 +267,7 @@ export default async function DashboardPage() {
               <div className="mt-1 text-sm leading-6 text-gray-600">
                 {isAtLimit
                   ? 'Free limit reached. Upgrade your plan to continue creating documents.'
-                  : 'Create a new SOP, policy, runbook, or other compliance document.'}
+                  : 'Create a new SOP, policy, runbook, HR guideline, process note, or other business document.'}
               </div>
             </Link>
 
@@ -275,7 +275,7 @@ export default async function DashboardPage() {
               href="/dashboard/library"
               className="group block rounded-2xl border border-gray-200 bg-gray-50 p-6 transition hover:border-gray-300 hover:bg-white"
             >
-              <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl border border-gray-200 bg-white text-gray-700">
+              <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl border border-violet-100 bg-violet-50 text-violet-700">
                 <svg
                   className="h-5 w-5"
                   fill="none"
@@ -304,7 +304,7 @@ export default async function DashboardPage() {
               href="/dashboard"
               className="group block rounded-2xl border border-gray-200 bg-gray-50 p-6 transition hover:border-gray-300 hover:bg-white"
             >
-              <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl border border-gray-200 bg-white text-gray-700">
+              <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl border border-emerald-100 bg-emerald-50 text-emerald-700">
                 <svg
                   className="h-5 w-5"
                   fill="none"
@@ -324,8 +324,7 @@ export default async function DashboardPage() {
                 Audit readiness
               </div>
               <div className="mt-1 text-sm leading-6 text-gray-600">
-                Review ISO 27001, TISAX, GDPR, and related framework readiness
-                indicators.
+                Review framework readiness and document maturity across your workspace.
               </div>
             </Link>
           </div>
