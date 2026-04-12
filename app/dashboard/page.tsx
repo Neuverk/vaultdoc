@@ -35,17 +35,22 @@ export default async function DashboardPage() {
         </div>
 
         <div className="grid grid-cols-4 gap-4 mb-8">
-          {[
-            { label: 'Documents', value: '0' },
-            { label: 'Pending approval', value: '0' },
-            { label: 'Compliance gaps', value: '—' },
-            { label: 'Audit readiness', value: '—' },
-          ].map((stat) => (
-            <div key={stat.label} className="bg-white rounded-xl border border-gray-200 p-4">
-              <div className="text-2xl font-bold text-gray-900">{stat.value}</div>
-              <div className="text-sm text-gray-500 mt-1">{stat.label}</div>
-            </div>
-          ))}
+          <a href="/dashboard/library" className="bg-white rounded-xl border border-gray-200 p-4 hover:border-blue-300 transition-all block">
+            <div className="text-2xl font-bold text-gray-900">0</div>
+            <div className="text-sm text-gray-500 mt-1">Documents →</div>
+          </a>
+          <div className="bg-white rounded-xl border border-gray-200 p-4">
+            <div className="text-2xl font-bold text-gray-900">0</div>
+            <div className="text-sm text-gray-500 mt-1">Pending approval</div>
+          </div>
+          <div className="bg-white rounded-xl border border-gray-200 p-4">
+            <div className="text-2xl font-bold text-gray-900">—</div>
+            <div className="text-sm text-gray-500 mt-1">Compliance gaps</div>
+          </div>
+          <div className="bg-white rounded-xl border border-gray-200 p-4">
+            <div className="text-2xl font-bold text-gray-900">—</div>
+            <div className="text-sm text-gray-500 mt-1">Audit readiness</div>
+          </div>
         </div>
 
         <div className="bg-white rounded-xl border border-gray-200 p-6">
@@ -56,10 +61,10 @@ export default async function DashboardPage() {
               <div className="font-medium text-gray-900 text-sm">Create document</div>
               <div className="text-xs text-gray-500 mt-1">SOP, Policy, Runbook and more</div>
             </a>
-            <a href="/dashboard" className="border border-gray-200 rounded-lg p-4 hover:border-blue-400 hover:bg-blue-50 transition-all block">
-              <div className="text-2xl mb-2">🔍</div>
-              <div className="font-medium text-gray-900 text-sm">Run gap analysis</div>
-              <div className="text-xs text-gray-500 mt-1">Upload docs, find what is missing</div>
+            <a href="/dashboard/library" className="border border-gray-200 rounded-lg p-4 hover:border-blue-400 hover:bg-blue-50 transition-all block">
+              <div className="text-2xl mb-2">📚</div>
+              <div className="font-medium text-gray-900 text-sm">Document library</div>
+              <div className="text-xs text-gray-500 mt-1">View and manage all documents</div>
             </a>
             <a href="/dashboard" className="border border-gray-200 rounded-lg p-4 hover:border-blue-400 hover:bg-blue-50 transition-all block">
               <div className="text-2xl mb-2">✅</div>
