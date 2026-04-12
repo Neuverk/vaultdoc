@@ -1,15 +1,16 @@
-import { UserButton } from '@clerk/nextjs'
 import { currentUser, auth } from '@clerk/nextjs/server'
 import { db } from '@/lib/db'
-import { documents, users } from '@/lib/db/schema'
+import { documents, users, tenants } from '@/lib/db/schema'
 import { eq } from 'drizzle-orm'
 import Link from 'next/link'
+import { PLANS, PlanType } from '@/lib/plans'
 
 export default async function DashboardPage() {
   const user = await currentUser()
   const { userId } = await auth()
 
   let docCount = 0
+  let plan: PlanType = 'free'
 
   try {
     const dbUser = await db.query.users.findFirst({
@@ -20,36 +21,40 @@ export default async function DashboardPage() {
         where: eq(documents.tenantId, dbUser.tenantId!),
       })
       docCount = docs.length
+
+      const tenant = await db.query.tenants.findFirst({
+        where: eq(tenants.id, dbUser.tenantId!),
+      })
+      plan = (tenant?.plan ?? 'free') as PlanType
     }
   } catch (e) {
     console.error('Dashboard error:', e)
   }
 
+  const isAtLimit = plan === 'free' && docCount >= 3
+
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Top bar */}
-      <div className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
-        <a href="/dashboard" className="flex items-center gap-3 hover:opacity-80 transition">
-          <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-            <span className="text-white text-sm font-bold">V</span>
-          </div>
-          <div>
-            <span className="font-semibold text-gray-900">Vaultdoc</span>
-            <span className="text-xs text-gray-500 ml-2">by Neuverk</span>
-          </div>
-        </a>
-        <div className="flex items-center gap-4">
-          <Link href="/dashboard/create" className="bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2 rounded-lg">
-            + New document
-          </Link>
-          <span className="text-sm text-gray-600">
-            {user?.firstName || user?.emailAddresses[0]?.emailAddress}
-          </span>
-          <UserButton />
-        </div>
-      </div>
-
       <div className="max-w-7xl mx-auto px-6 py-8">
+
+        {/* Upgrade banner */}
+        {isAtLimit && (
+          <div className="mb-6 rounded-xl border border-amber-200 bg-amber-50 p-5 flex items-center justify-between">
+            <div>
+              <p className="font-semibold text-amber-800">You've reached the Free plan limit</p>
+              <p className="text-sm text-amber-700 mt-0.5">
+                {docCount}/3 documents used. Upgrade to create unlimited documents.
+              </p>
+            </div>
+            <Link
+              href="/dashboard/billing"
+              className="ml-4 shrink-0 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2 rounded-lg"
+            >
+              Upgrade →
+            </Link>
+          </div>
+        )}
+
         {/* Welcome */}
         <div className="mb-8">
           <h1 className="text-2xl font-bold text-gray-900">
@@ -72,7 +77,9 @@ export default async function DashboardPage() {
               <span className="text-xs text-blue-600 font-medium">View all →</span>
             </div>
             <div className="text-3xl font-bold text-gray-900">{docCount}</div>
-            <div className="text-sm text-gray-500 mt-1">Documents</div>
+            <div className="text-sm text-gray-500 mt-1">
+              Documents {plan === 'free' ? `(${docCount}/3 free)` : ''}
+            </div>
           </Link>
 
           <div className="bg-white rounded-xl border border-gray-200 p-5">
@@ -116,14 +123,27 @@ export default async function DashboardPage() {
         <div className="bg-white rounded-xl border border-gray-200 p-6 mb-6">
           <h2 className="text-base font-semibold text-gray-900 mb-4">Quick actions</h2>
           <div className="grid grid-cols-3 gap-4">
-            <Link href="/dashboard/create" className="border border-gray-200 rounded-xl p-5 hover:border-blue-400 hover:bg-blue-50 transition-all block group">
-              <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center mb-3 group-hover:bg-blue-200 transition">
-                <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <Link
+              href={isAtLimit ? '/dashboard/billing' : '/dashboard/documents/new'}
+              className={`border rounded-xl p-5 transition-all block group ${
+                isAtLimit
+                  ? 'border-amber-200 bg-amber-50 hover:border-amber-400'
+                  : 'border-gray-200 hover:border-blue-400 hover:bg-blue-50'
+              }`}
+            >
+              <div className={`w-10 h-10 rounded-lg flex items-center justify-center mb-3 transition ${
+                isAtLimit ? 'bg-amber-100 group-hover:bg-amber-200' : 'bg-blue-100 group-hover:bg-blue-200'
+              }`}>
+                <svg className={`w-5 h-5 ${isAtLimit ? 'text-amber-600' : 'text-blue-600'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                 </svg>
               </div>
-              <div className="font-medium text-gray-900 text-sm">Create document</div>
-              <div className="text-xs text-gray-500 mt-1">SOP, Policy, Runbook and more</div>
+              <div className="font-medium text-gray-900 text-sm">
+                {isAtLimit ? 'Upgrade to create more' : 'Create document'}
+              </div>
+              <div className="text-xs text-gray-500 mt-1">
+                {isAtLimit ? 'Free limit reached — upgrade now' : 'SOP, Policy, Runbook and more'}
+              </div>
             </Link>
 
             <Link href="/dashboard/library" className="border border-gray-200 rounded-xl p-5 hover:border-purple-400 hover:bg-purple-50 transition-all block group">

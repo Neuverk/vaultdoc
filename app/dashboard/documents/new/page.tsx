@@ -302,13 +302,6 @@ ${form.tools ? `Tools/Systems: ${form.tools}` : ''}`
     <div className="min-h-screen bg-gray-50 flex flex-col">
       {/* Top bar */}
       <div className="bg-white border-b border-gray-200 px-6 py-3 flex items-center gap-3 shrink-0">
-        <a href="/dashboard" className="flex items-center gap-2 hover:opacity-80 transition">
-          <div className="w-7 h-7 bg-blue-600 rounded-lg flex items-center justify-center">
-            <span className="text-white text-xs font-bold">V</span>
-          </div>
-          <span className="font-semibold text-gray-900 text-sm">Vaultdoc</span>
-        </a>
-        <span className="text-gray-300">/</span>
         <a href="/dashboard" className="text-gray-500 hover:text-gray-900 text-sm">Dashboard</a>
         <span className="text-gray-300">/</span>
         <span className="text-sm font-medium text-gray-900">New document</span>

@@ -2,7 +2,6 @@ import { auth } from '@clerk/nextjs/server'
 import { db } from '@/lib/db'
 import { documents, users } from '@/lib/db/schema'
 import { eq } from 'drizzle-orm'
-import Navbar from '@/components/navbar'
 
 export default async function LibraryPage() {
   const { userId } = await auth()
@@ -38,7 +37,6 @@ export default async function LibraryPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <Navbar />
       <div className="max-w-7xl mx-auto px-6 py-8">
         <div className="flex items-center justify-between mb-6">
           <div>

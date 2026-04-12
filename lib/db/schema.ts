@@ -10,6 +10,12 @@ export const tenants = pgTable('tenants', {
   primaryColor: text('primary_color').default('#0071e3'),
   customDomain: text('custom_domain'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
+
+  stripeCustomerId: text('stripe_customer_id'),
+  stripeSubscriptionId: text('stripe_subscription_id'),
+  stripePriceId: text('stripe_price_id'),
+  stripeCurrentPeriodEnd: timestamp('stripe_current_period_end'),
+  stripeSubscriptionStatus: text('stripe_subscription_status'),
 })
 
 // ─── USERS ────────────────────────────────────────────────

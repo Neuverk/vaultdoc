@@ -22,6 +22,9 @@ export default async function Navbar() {
         <a href="/dashboard/library" className="text-sm text-gray-600 hover:text-gray-900">
           Library
         </a>
+        <a href="/dashboard/billing" className="text-sm text-gray-600 hover:text-gray-900">
+          Billing
+        </a>
         <span className="text-sm text-gray-600">
           {user?.firstName || user?.emailAddresses[0]?.emailAddress}
         </span>

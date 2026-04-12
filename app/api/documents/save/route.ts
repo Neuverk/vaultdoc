@@ -3,6 +3,7 @@ import { NextRequest } from 'next/server'
 import { db } from '@/lib/db'
 import { documents, users, tenants } from '@/lib/db/schema'
 import { eq } from 'drizzle-orm'
+import { canCreateDocument } from '@/lib/plan-limits'
 
 export async function POST(req: NextRequest) {
   const { userId } = await auth()
@@ -32,6 +33,15 @@ export async function POST(req: NextRequest) {
         plan: 'free',
       }).returning()
       tenant = newTenant
+    }
+
+    // ✅ Check plan limit before saving
+    const { allowed, reason, currentCount, limit } = await canCreateDocument(tenant.id)
+    if (!allowed) {
+      return new Response(
+        JSON.stringify({ error: reason, code: 'PLAN_LIMIT_REACHED', currentCount, limit }),
+        { status: 403, headers: { 'Content-Type': 'application/json' } }
+      )
     }
 
     // Get or create user
