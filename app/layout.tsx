@@ -23,8 +23,8 @@ export default function RootLayout({
       signUpFallbackRedirectUrl="/dashboard"
       afterSignOutUrl="/"
     >
-      <html lang="en">
-        <body className={inter.className}>
+      <html lang="en" className="h-full bg-white">
+        <body className={`${inter.className} min-h-screen bg-gray-50 text-gray-900 antialiased`}>
           {children}
         </body>
       </html>
