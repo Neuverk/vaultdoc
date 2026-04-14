@@ -1,17 +1,22 @@
 import Navbar from '@/components/navbar'
+import { auth } from '@clerk/nextjs/server'
+import { redirect } from 'next/navigation'
 
-export default function DashboardLayout({
+export default async function DashboardLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
+  const { userId } = await auth()
+
+  if (!userId) {
+    redirect('/sign-in')
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       <Navbar />
-
-      <main className="mx-auto w-full max-w-7xl px-6 py-8 lg:px-8">
-        {children}
-      </main>
+      <main>{children}</main>
     </div>
   )
 }

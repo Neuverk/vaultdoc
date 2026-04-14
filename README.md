@@ -1,36 +1,80 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# VaultDoc
 
-## Getting Started
+AI-powered compliance documentation platform built for enterprise teams.
 
-First, run the development server:
+VaultDoc helps IT, security, compliance, HR, finance, and operations teams generate professional SOPs, policies, runbooks, risk assessments, and audit-ready documentation aligned to major frameworks.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+Live: https://vaultdoc.neuverk.com
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+---
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Core Features
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- AI-powered document generation
+- Guided follow-up interview workflow
+- Multi-framework support
+- Document library
+- Live markdown editor + preview
+- PDF and Word export
+- Multi-tenant document isolation
+- Stripe subscription plans
+- GDPR legal pages
+- Audit logging
+- Security hardening
+- Rate limiting
+- Input sanitization
 
-## Learn More
+---
 
-To learn more about Next.js, take a look at the following resources:
+## Supported Frameworks
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- ISO 27001:2022
+- TISAX
+- ITIL v4
+- SOC 2
+- GDPR
+- NIST CSF 2.0
+- NIS2
+- DORA
+- ISO 9001
+- ISO 22301
+- PCI-DSS
+- HIPAA
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+---
 
-## Deploy on Vercel
+## Tech Stack
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+- Next.js 16
+- TypeScript
+- Tailwind CSS
+- Clerk Authentication
+- Neon PostgreSQL (Frankfurt EU)
+- Drizzle ORM
+- Anthropic Claude API
+- Stripe
+- Vercel
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+---
+
+## Environment Variables
+
+Create `.env.local`
+
+```env
+DATABASE_URL=
+
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=
+CLERK_SECRET_KEY=
+
+ANTHROPIC_API_KEY=
+
+NEXT_PUBLIC_APP_URL=
+
+NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=
+STRIPE_SECRET_KEY=
+STRIPE_WEBHOOK_SECRET=
+
+STRIPE_PRICE_FREE=
+STRIPE_PRICE_STARTER=
+STRIPE_PRICE_ENTERPRISE=

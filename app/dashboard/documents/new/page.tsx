@@ -1,24 +1,48 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
 import dynamic from 'next/dynamic'
-import { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType } from 'docx'
+import {
+  Document,
+  Packer,
+  Paragraph,
+  TextRun,
+  HeadingLevel,
+  AlignmentType,
+} from 'docx'
 import { saveAs } from 'file-saver'
 
 const MDEditor = dynamic(() => import('@uiw/react-md-editor'), { ssr: false })
 
 const FRAMEWORKS = [
-  'ISO 27001:2022', 'TISAX', 'ITIL v4', 'SOC 2',
-  'GDPR', 'HIPAA', 'PCI-DSS v4', 'NIST CSF 2.0',
-  'ISO 9001', 'ISO 22301', 'NIS2', 'DORA',
+  'ISO 27001:2022',
+  'TISAX',
+  'ITIL v4',
+  'SOC 2',
+  'GDPR',
+  'HIPAA',
+  'PCI-DSS v4',
+  'NIST CSF 2.0',
+  'ISO 9001',
+  'ISO 22301',
+  'NIS2',
+  'DORA',
 ]
 
 const DOC_TYPES = [
-  'SOP', 'Policy', 'Runbook', 'IR Plan',
-  'Risk Assessment', 'Work Instruction', 'BCP',
-  'Data Classification', 'DPIA', 'Audit Checklist',
+  'SOP',
+  'Policy',
+  'Runbook',
+  'IR Plan',
+  'Risk Assessment',
+  'Work Instruction',
+  'BCP',
+  'Data Classification',
+  'DPIA',
+  'Audit Checklist',
 ]
+
+const AI_DISCLOSURE_KEY = 'vaultdoc_anthropic_notice_dismissed'
 
 type Message = { role: 'user' | 'assistant'; content: string }
 type Phase = 'form' | 'chat' | 'generating' | 'done'
@@ -27,6 +51,7 @@ function buildHtmlContent(content: string) {
   const lines = content.split('\n')
   let inTable = false
   let html = ''
+
   for (const line of lines) {
     if (!line.trim()) {
       if (inTable) {
@@ -45,18 +70,23 @@ function buildHtmlContent(content: string) {
     } else if (line.startsWith('|')) {
       if (line.includes('---')) continue
       if (!inTable) {
-        html += '<table style="width:100%;border-collapse:collapse;margin:16px 0">'
+        html +=
+          '<table style="width:100%;border-collapse:collapse;margin:16px 0">'
         inTable = true
       }
-      const cells = line.split('|').filter((_, i, a) => i > 0 && i < a.length - 1)
-      const isHeader = cells.some(c => c.includes('**'))
+      const cells = line
+        .split('|')
+        .filter((_, i, a) => i > 0 && i < a.length - 1)
+      const isHeader = cells.some((c) => c.includes('**'))
       html += `<tr>${cells
-        .map(cell => {
+        .map((cell) => {
           const tag = isHeader ? 'th' : 'td'
           const style = isHeader
             ? 'background:#0f172a;color:white;font-weight:600;padding:8px 12px;text-align:left;font-size:12px'
             : 'border:1px solid #e5e7eb;padding:8px 12px;font-size:12px'
-          return `<${tag} style="${style}">${cell.replace(/\*\*/g, '').trim()}</${tag}>`
+          return `<${tag} style="${style}">${cell
+            .replace(/\*\*/g, '')
+            .trim()}</${tag}>`
         })
         .join('')}</tr>`
     } else {
@@ -67,12 +97,12 @@ function buildHtmlContent(content: string) {
       html += `<p>${line.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')}</p>`
     }
   }
+
   if (inTable) html += '</table>'
   return html
 }
 
 export default function NewDocumentPage() {
-  const router = useRouter()
   const [phase, setPhase] = useState<Phase>('form')
   const [form, setForm] = useState({
     title: '',
@@ -91,24 +121,44 @@ export default function NewDocumentPage() {
   const [content, setContent] = useState('')
   const [saving, setSaving] = useState(false)
   const [fullscreen, setFullscreen] = useState(false)
+  const [showAiDisclosure, setShowAiDisclosure] = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, isThinking])
 
+  useEffect(() => {
+    try {
+      const dismissed = localStorage.getItem(AI_DISCLOSURE_KEY)
+      setShowAiDisclosure(dismissed !== 'true')
+    } catch {
+      setShowAiDisclosure(true)
+    }
+  }, [])
+
+  const dismissAiDisclosure = () => {
+    try {
+      localStorage.setItem(AI_DISCLOSURE_KEY, 'true')
+    } catch {
+      // ignore localStorage issues
+    }
+    setShowAiDisclosure(false)
+  }
+
   const toggleFramework = (fw: string) => {
-    setForm(prev => ({
+    setForm((prev) => ({
       ...prev,
       frameworks: prev.frameworks.includes(fw)
-        ? prev.frameworks.filter(f => f !== fw)
+        ? prev.frameworks.filter((f) => f !== fw)
         : [...prev.frameworks, fw],
     }))
   }
 
   const startChat = async () => {
     if (!form.title) return alert('Please enter a document title')
-    if (form.frameworks.length === 0) return alert('Select at least one framework')
+    if (form.frameworks.length === 0)
+      return alert('Select at least one framework')
 
     const firstMessage: Message = {
       role: 'user',
@@ -138,11 +188,14 @@ ${form.tools ? `Tools/Systems: ${form.tools}` : ''}`,
         setIsThinking(false)
         await generateDocument(data.meta, [firstMessage])
       } else {
-        setMessages(prev => [...prev, { role: 'assistant', content: data.reply }])
+        setMessages((prev) => [
+          ...prev,
+          { role: 'assistant', content: data.reply },
+        ])
         setIsThinking(false)
       }
     } catch {
-      setMessages(prev => [
+      setMessages((prev) => [
         ...prev,
         { role: 'assistant', content: 'Something went wrong. Please try again.' },
       ])
@@ -168,7 +221,7 @@ ${form.tools ? `Tools/Systems: ${form.tools}` : ''}`,
       const data = await res.json()
 
       if (data.ready) {
-        setMessages(prev => [
+        setMessages((prev) => [
           ...prev,
           {
             role: 'assistant',
@@ -178,11 +231,14 @@ ${form.tools ? `Tools/Systems: ${form.tools}` : ''}`,
         setIsThinking(false)
         await generateDocument(data.meta, newMessages)
       } else {
-        setMessages(prev => [...prev, { role: 'assistant', content: data.reply }])
+        setMessages((prev) => [
+          ...prev,
+          { role: 'assistant', content: data.reply },
+        ])
         setIsThinking(false)
       }
     } catch {
-      setMessages(prev => [
+      setMessages((prev) => [
         ...prev,
         { role: 'assistant', content: 'Something went wrong. Please try again.' },
       ])
@@ -190,23 +246,29 @@ ${form.tools ? `Tools/Systems: ${form.tools}` : ''}`,
     }
   }
 
-  const generateDocument = async (meta: any, conversationMessages: Message[]) => {
+  const generateDocument = async (
+    meta: any,
+    conversationMessages: Message[],
+  ) => {
     setPhase('generating')
     try {
       const res = await fetch('/api/documents/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ meta: { ...form, ...meta }, messages: conversationMessages }),
+        body: JSON.stringify({
+          meta: { ...form, ...meta },
+          messages: conversationMessages,
+        }),
       })
       const data = await res.json()
       if (data.content) {
         setContent(data.content)
-        setForm(prev => ({ ...prev, ...meta }))
+        setForm((prev) => ({ ...prev, ...meta }))
         setPhase('done')
       }
     } catch {
       setPhase('chat')
-      setMessages(prev => [
+      setMessages((prev) => [
         ...prev,
         {
           role: 'assistant',
@@ -226,6 +288,7 @@ ${form.tools ? `Tools/Systems: ${form.tools}` : ''}`,
   const downloadWord = async () => {
     const lines = content.split('\n')
     const children: Paragraph[] = []
+
     children.push(
       new Paragraph({
         text: form.title,
@@ -244,23 +307,46 @@ ${form.tools ? `Tools/Systems: ${form.tools}` : ''}`,
         spacing: { after: 400 },
       }),
     )
-    lines.forEach(line => {
+
+    lines.forEach((line) => {
       if (!line.trim()) {
         children.push(new Paragraph({ text: '' }))
       } else if (line.startsWith('# ')) {
-        children.push(new Paragraph({ text: line.replace('# ', ''), heading: HeadingLevel.HEADING_1 }))
+        children.push(
+          new Paragraph({
+            text: line.replace('# ', ''),
+            heading: HeadingLevel.HEADING_1,
+          }),
+        )
       } else if (line.startsWith('## ')) {
-        children.push(new Paragraph({ text: line.replace('## ', ''), heading: HeadingLevel.HEADING_2 }))
+        children.push(
+          new Paragraph({
+            text: line.replace('## ', ''),
+            heading: HeadingLevel.HEADING_2,
+          }),
+        )
       } else if (line.startsWith('### ')) {
-        children.push(new Paragraph({ text: line.replace('### ', ''), heading: HeadingLevel.HEADING_3 }))
+        children.push(
+          new Paragraph({
+            text: line.replace('### ', ''),
+            heading: HeadingLevel.HEADING_3,
+          }),
+        )
       } else if (line.startsWith('- ') || line.startsWith('* ')) {
-        children.push(new Paragraph({ text: line.replace(/^[-*] /, ''), bullet: { level: 0 } }))
+        children.push(
+          new Paragraph({
+            text: line.replace(/^[-*] /, ''),
+            bullet: { level: 0 },
+          }),
+        )
       } else if (line.startsWith('|') && !line.includes('---')) {
-        const cells = line.split('|').filter((_, i, a) => i > 0 && i < a.length - 1)
+        const cells = line
+          .split('|')
+          .filter((_, i, a) => i > 0 && i < a.length - 1)
         children.push(
           new Paragraph({
             children: cells.map(
-              cell =>
+              (cell) =>
                 new TextRun({
                   text: cell.replace(/\*\*/g, '').trim() + '  ',
                   bold: cell.includes('**'),
@@ -272,7 +358,7 @@ ${form.tools ? `Tools/Systems: ${form.tools}` : ''}`,
         const parts = line.split(/(\*\*.*?\*\*)/)
         children.push(
           new Paragraph({
-            children: parts.map(part =>
+            children: parts.map((part) =>
               part.startsWith('**') && part.endsWith('**')
                 ? new TextRun({ text: part.replace(/\*\*/g, ''), bold: true })
                 : new TextRun({ text: part }),
@@ -281,6 +367,7 @@ ${form.tools ? `Tools/Systems: ${form.tools}` : ''}`,
         )
       }
     })
+
     const doc = new Document({ sections: [{ properties: {}, children }] })
     const blob = await Packer.toBlob(doc)
     saveAs(blob, `${form.title.replace(/\s+/g, '_')}.docx`)
@@ -290,6 +377,7 @@ ${form.tools ? `Tools/Systems: ${form.tools}` : ''}`,
     const printWindow = window.open('', '_blank')
     if (!printWindow) return
     const htmlContent = buildHtmlContent(content)
+
     const html = `<!DOCTYPE html><html><head><title>${form.title}</title>
     <style>
       body{font-family:Arial,sans-serif;max-width:820px;margin:40px auto;padding:0 40px;color:#1a1a1a;line-height:1.6}
@@ -319,6 +407,7 @@ ${form.tools ? `Tools/Systems: ${form.tools}` : ''}`,
     ${htmlContent}
     <div class="footer">Generated by Vaultdoc by Neuverk · ${new Date().toLocaleDateString()} · ${form.confidentiality}</div>
     </body></html>`
+
     printWindow.document.write(html)
     printWindow.document.close()
     printWindow.focus()
@@ -347,7 +436,10 @@ ${form.tools ? `Tools/Systems: ${form.tools}` : ''}`,
     <div className="min-h-screen bg-gray-50">
       <div className="border-b border-gray-200 bg-white">
         <div className="mx-auto flex max-w-7xl items-center gap-3 px-6 py-4">
-          <a href="/dashboard" className="text-sm text-gray-500 transition hover:text-gray-900">
+          <a
+            href="/dashboard"
+            className="text-sm text-gray-500 transition hover:text-gray-900"
+          >
             Dashboard
           </a>
           <span className="text-gray-300">/</span>
@@ -397,10 +489,36 @@ ${form.tools ? `Tools/Systems: ${form.tools}` : ''}`,
                 Create new document
               </h1>
               <p className="mt-2 text-sm leading-6 text-gray-600">
-                Fill in the key details first. VaultDoc will ask follow-up questions only where needed, then generate a structured document for review.
+                Fill in the key details first. VaultDoc will ask follow-up questions
+                only where needed, then generate a structured document for review.
               </p>
             </div>
           </div>
+
+          {showAiDisclosure && (
+            <div className="mb-8 rounded-3xl border border-amber-200 bg-amber-50 p-6 shadow-sm">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                <div className="max-w-3xl">
+                  <p className="text-sm font-semibold text-amber-950">
+                    AI processing notice
+                  </p>
+                  <p className="mt-2 text-sm leading-6 text-amber-900">
+                    Your inputs are processed by Anthropic&apos;s AI to generate
+                    documents. Avoid including passwords, personal data, or
+                    classified information.
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={dismissAiDisclosure}
+                  className="inline-flex shrink-0 items-center justify-center rounded-xl border border-amber-300 bg-white px-4 py-2 text-sm font-semibold text-amber-900 transition hover:bg-amber-100"
+                >
+                  Dismiss
+                </button>
+              </div>
+            </div>
+          )}
 
           <div className="rounded-3xl border border-gray-200 bg-white p-8 shadow-sm">
             <div className="grid gap-8">
@@ -411,7 +529,9 @@ ${form.tools ? `Tools/Systems: ${form.tools}` : ''}`,
                 <input
                   type="text"
                   value={form.title}
-                  onChange={e => setForm(prev => ({ ...prev, title: e.target.value }))}
+                  onChange={(e) =>
+                    setForm((prev) => ({ ...prev, title: e.target.value }))
+                  }
                   placeholder="e.g. SOP for Veeam Backup & Recovery"
                   className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 outline-none transition placeholder:text-gray-400 focus:border-gray-400"
                 />
@@ -424,10 +544,12 @@ ${form.tools ? `Tools/Systems: ${form.tools}` : ''}`,
                   </label>
                   <select
                     value={form.type}
-                    onChange={e => setForm(prev => ({ ...prev, type: e.target.value }))}
+                    onChange={(e) =>
+                      setForm((prev) => ({ ...prev, type: e.target.value }))
+                    }
                     className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 outline-none transition focus:border-gray-400"
                   >
-                    {DOC_TYPES.map(t => (
+                    {DOC_TYPES.map((t) => (
                       <option key={t}>{t}</option>
                     ))}
                   </select>
@@ -439,7 +561,9 @@ ${form.tools ? `Tools/Systems: ${form.tools}` : ''}`,
                   </label>
                   <select
                     value={form.department}
-                    onChange={e => setForm(prev => ({ ...prev, department: e.target.value }))}
+                    onChange={(e) =>
+                      setForm((prev) => ({ ...prev, department: e.target.value }))
+                    }
                     className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 outline-none transition focus:border-gray-400"
                   >
                     {[
@@ -450,7 +574,7 @@ ${form.tools ? `Tools/Systems: ${form.tools}` : ''}`,
                       'Operations',
                       'Engineering',
                       'Management',
-                    ].map(d => (
+                    ].map((d) => (
                       <option key={d}>{d}</option>
                     ))}
                   </select>
@@ -462,7 +586,7 @@ ${form.tools ? `Tools/Systems: ${form.tools}` : ''}`,
                   Frameworks
                 </label>
                 <div className="flex flex-wrap gap-2.5">
-                  {FRAMEWORKS.map(fw => (
+                  {FRAMEWORKS.map((fw) => (
                     <button
                       key={fw}
                       onClick={() => toggleFramework(fw)}
@@ -485,7 +609,9 @@ ${form.tools ? `Tools/Systems: ${form.tools}` : ''}`,
                   </label>
                   <select
                     value={form.tone}
-                    onChange={e => setForm(prev => ({ ...prev, tone: e.target.value }))}
+                    onChange={(e) =>
+                      setForm((prev) => ({ ...prev, tone: e.target.value }))
+                    }
                     className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 outline-none transition focus:border-gray-400"
                   >
                     <option>Technical (detailed)</option>
@@ -501,7 +627,9 @@ ${form.tools ? `Tools/Systems: ${form.tools}` : ''}`,
                   </label>
                   <select
                     value={form.language}
-                    onChange={e => setForm(prev => ({ ...prev, language: e.target.value }))}
+                    onChange={(e) =>
+                      setForm((prev) => ({ ...prev, language: e.target.value }))
+                    }
                     className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 outline-none transition focus:border-gray-400"
                   >
                     <option>English</option>
@@ -517,7 +645,12 @@ ${form.tools ? `Tools/Systems: ${form.tools}` : ''}`,
                   </label>
                   <select
                     value={form.confidentiality}
-                    onChange={e => setForm(prev => ({ ...prev, confidentiality: e.target.value }))}
+                    onChange={(e) =>
+                      setForm((prev) => ({
+                        ...prev,
+                        confidentiality: e.target.value,
+                      }))
+                    }
                     className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 outline-none transition focus:border-gray-400"
                   >
                     <option>Public</option>
@@ -535,7 +668,9 @@ ${form.tools ? `Tools/Systems: ${form.tools}` : ''}`,
                   </label>
                   <textarea
                     value={form.scope}
-                    onChange={e => setForm(prev => ({ ...prev, scope: e.target.value }))}
+                    onChange={(e) =>
+                      setForm((prev) => ({ ...prev, scope: e.target.value }))
+                    }
                     placeholder="Who and what does this apply to?"
                     rows={4}
                     className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 outline-none transition placeholder:text-gray-400 focus:border-gray-400"
@@ -548,7 +683,9 @@ ${form.tools ? `Tools/Systems: ${form.tools}` : ''}`,
                   </label>
                   <textarea
                     value={form.tools}
-                    onChange={e => setForm(prev => ({ ...prev, tools: e.target.value }))}
+                    onChange={(e) =>
+                      setForm((prev) => ({ ...prev, tools: e.target.value }))
+                    }
                     placeholder="e.g. Veeam, Windows Server"
                     rows={4}
                     className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 outline-none transition placeholder:text-gray-400 focus:border-gray-400"
@@ -558,7 +695,8 @@ ${form.tools ? `Tools/Systems: ${form.tools}` : ''}`,
 
               <div className="flex flex-col gap-3 border-t border-gray-100 pt-6 sm:flex-row sm:items-center sm:justify-between">
                 <p className="text-sm text-gray-500">
-                  VaultDoc will guide the next step through a short AI follow-up flow.
+                  VaultDoc will guide the next step through a short AI follow-up
+                  flow.
                 </p>
                 <button
                   onClick={startChat}
@@ -579,7 +717,8 @@ ${form.tools ? `Tools/Systems: ${form.tools}` : ''}`,
               AI document follow-up
             </h1>
             <p className="mt-2 text-sm leading-6 text-gray-600">
-              Answer the follow-up questions below. The more precise your answers, the better the final document structure and quality.
+              Answer the follow-up questions below. The more precise your answers,
+              the better the final document structure and quality.
             </p>
           </div>
 
@@ -587,7 +726,9 @@ ${form.tools ? `Tools/Systems: ${form.tools}` : ''}`,
             {messages.map((msg, i) => (
               <div
                 key={i}
-                className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                className={`flex ${
+                  msg.role === 'user' ? 'justify-end' : 'justify-start'
+                }`}
               >
                 {msg.role === 'assistant' && (
                   <div className="mr-3 mt-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl border border-gray-200 bg-gray-900">
@@ -598,7 +739,7 @@ ${form.tools ? `Tools/Systems: ${form.tools}` : ''}`,
                 <div
                   className={`max-w-2xl rounded-2xl px-5 py-4 text-sm leading-7 whitespace-pre-wrap ${
                     msg.role === 'user'
-                      ? 'rounded-tr-md bg-emerald-50 text-emerald-900 border border-emerald-200'
+                      ? 'rounded-tr-md border border-emerald-200 bg-emerald-50 text-emerald-900'
                       : 'rounded-tl-md border border-gray-200 bg-gray-50 text-gray-800'
                   }`}
                 >
@@ -615,15 +756,15 @@ ${form.tools ? `Tools/Systems: ${form.tools}` : ''}`,
                 <div className="rounded-2xl rounded-tl-md border border-gray-200 bg-gray-50 px-5 py-4">
                   <div className="flex gap-1.5">
                     <div
-                      className="h-2 w-2 rounded-full bg-gray-400 animate-bounce"
+                      className="h-2 w-2 animate-bounce rounded-full bg-gray-400"
                       style={{ animationDelay: '0ms' }}
                     />
                     <div
-                      className="h-2 w-2 rounded-full bg-gray-400 animate-bounce"
+                      className="h-2 w-2 animate-bounce rounded-full bg-gray-400"
                       style={{ animationDelay: '150ms' }}
                     />
                     <div
-                      className="h-2 w-2 rounded-full bg-gray-400 animate-bounce"
+                      className="h-2 w-2 animate-bounce rounded-full bg-gray-400"
                       style={{ animationDelay: '300ms' }}
                     />
                   </div>
@@ -651,7 +792,7 @@ ${form.tools ? `Tools/Systems: ${form.tools}` : ''}`,
               <div className="flex items-end gap-4">
                 <textarea
                   value={input}
-                  onChange={e => setInput(e.target.value)}
+                  onChange={(e) => setInput(e.target.value)}
                   onKeyDown={handleKeyDown}
                   placeholder="Answer the question above..."
                   rows={3}
@@ -664,7 +805,12 @@ ${form.tools ? `Tools/Systems: ${form.tools}` : ''}`,
                   disabled={!input.trim() || isThinking}
                   className="shrink-0 rounded-2xl bg-gray-900 p-3 text-white transition hover:bg-gray-800 disabled:bg-gray-200 disabled:text-gray-400"
                 >
-                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg
+                    className="h-4 w-4"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
                     <path
                       strokeLinecap="round"
                       strokeLinejoin="round"
@@ -684,13 +830,19 @@ ${form.tools ? `Tools/Systems: ${form.tools}` : ''}`,
       )}
 
       {phase === 'done' && (
-        <div className={`mx-auto w-full px-6 py-8 ${fullscreen ? 'max-w-full' : 'max-w-7xl'}`}>
+        <div
+          className={`mx-auto w-full px-6 py-8 ${
+            fullscreen ? 'max-w-full' : 'max-w-7xl'
+          }`}
+        >
           <div className="mb-5 flex flex-col gap-4 rounded-3xl border border-gray-200 bg-white p-6 shadow-sm lg:flex-row lg:items-center lg:justify-between">
             <div>
               <div className="mb-2 inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700">
                 Generated successfully
               </div>
-              <h2 className="text-lg font-semibold text-gray-900">Document editor</h2>
+              <h2 className="text-lg font-semibold text-gray-900">
+                Document editor
+              </h2>
               <p className="mt-1 text-sm text-gray-600">
                 Review, edit, save, and export your generated document.
               </p>
@@ -707,7 +859,7 @@ ${form.tools ? `Tools/Systems: ${form.tools}` : ''}`,
           <div data-color-mode="light" style={{ height: 'calc(100vh - 220px)' }}>
             <MDEditor
               value={content}
-              onChange={val => setContent(val || '')}
+              onChange={(val) => setContent(val || '')}
               height="100%"
               preview="live"
               hideToolbar={false}
