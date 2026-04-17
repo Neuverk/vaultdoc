@@ -2,6 +2,8 @@ import Anthropic from '@anthropic-ai/sdk'
 import { auth } from '@clerk/nextjs/server'
 import { NextRequest } from 'next/server'
 import { db } from '@/lib/db'
+
+export const maxDuration = 60
 import { documents, users } from '@/lib/db/schema'
 import { eq } from 'drizzle-orm'
 import { checkRateLimit } from '@/lib/rate-limit'
@@ -138,32 +140,25 @@ export async function POST(req: NextRequest) {
   const language = newLanguage || sourceDoc.language || 'English'
   const frameworkList = (sourceDoc.frameworks ?? []).join(', ') || 'General'
 
-  const systemPrompt = `You are a senior compliance officer and technical writer. You revise existing compliance documents with precision and professionalism. Preserve the document structure, markdown formatting, and compliance framework references unless the requested changes explicitly affect them. Write in ${language}.`
+  const systemPrompt = `You are a compliance document editor. Apply only the requested changes to the document. Copy all unaffected sections exactly as they appear in the original — do not rephrase, improve, or expand them. Output only the complete revised document in ${language}, with no commentary.`
 
-  const userPrompt = `You are revising an existing compliance document. Apply ONLY the requested changes. Do not rewrite sections that are unaffected. Preserve all existing structure, section headers, tables, and compliance references unless a change explicitly requires otherwise.
+  const userPrompt = `Revise the following compliance document by applying ONLY the changes listed. Copy every unaffected section verbatim.
 
---- ORIGINAL DOCUMENT METADATA ---
-Title: ${sourceDoc.title}
-Type: ${sourceDoc.type}
-Department: ${sourceDoc.department}
-Frameworks: ${frameworkList}
-Confidentiality: ${sourceDoc.confidentiality}
-Language: ${sourceDoc.language || 'English'}
+METADATA: ${sourceDoc.title} | ${sourceDoc.type} | ${sourceDoc.department} | ${frameworkList} | ${sourceDoc.confidentiality}
 
---- ORIGINAL DOCUMENT CONTENT ---
+ORIGINAL CONTENT:
 ${sourceDoc.content}
 
---- REQUESTED CHANGES ---
+REQUESTED CHANGES:
 ${requestedChanges}
 
---- INSTRUCTIONS ---
-Produce the complete revised document below. Apply the requested changes carefully. Do not add commentary or explanations outside the document itself.`
+Output the complete revised document now.`
 
   let revisedContent: string
   try {
     const message = await anthropic.messages.create({
       model: 'claude-sonnet-4-20250514',
-      max_tokens: 6000,
+      max_tokens: 3000,
       system: systemPrompt,
       messages: [{ role: 'user', content: userPrompt }],
     })
