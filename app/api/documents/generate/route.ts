@@ -85,7 +85,7 @@ function sanitizeMessages(value: unknown): ChatMessage[] {
       }
     })
     .filter((msg) => msg.content.length > 0)
-    .slice(0, 50)
+    .slice(0, 12)
 }
 
 export async function POST(req: NextRequest) {
@@ -169,13 +169,14 @@ export async function POST(req: NextRequest) {
   const chatContext =
     messages.length > 0
       ? `\n\nAdditional context gathered through interview:\n${messages
-          .map((m) => `${m.role === 'user' ? 'Answer' : 'Question'}: ${m.content}`)
+          .filter((m) => m.role === 'user')
+          .map((m) => `Answer: ${m.content}`) 
           .join('\n')}`
       : ''
 
-  const systemPrompt = `You are a senior compliance officer and technical writer with 15 years of experience writing documentation for Fortune 500 companies. You write in a clear, professional but human tone — not robotic or overly formal. Your documents are practical, specific, and immediately usable by real teams. Use concrete examples, explain the "why" behind each step, and write as if a real expert is guiding the reader. Write in ${language || 'English'}. Use markdown formatting: ## for sections, ### for subsections, **bold** for key terms, - for bullets.`
+const systemPrompt = `You are a senior compliance documentation writer. Write in ${language || 'English'} using clear, practical, professional language. Use markdown with ## sections, ### subsections, **bold** for key terms, and - for bullets. Be specific, concise, and usable by real teams.`
 
-  const userPrompt = `Write a complete, professional ${type} for: "${title}"
+const userPrompt = `Write a complete, professional ${type} for: "${title}"
 
 Core details:
 - Department: ${department || 'General'}
@@ -187,41 +188,28 @@ ${purpose ? `- Purpose: ${purpose}` : ''}
 ${tools ? `- Tools/Systems involved: ${tools}` : ''}
 ${chatContext}
 
-IMPORTANT: The interview answers above contain critical specific details that MUST be incorporated into the document. Do not write a generic document — use every relevant specific detail provided in the answers.
-
-Structure the document with these sections:
+Use this structure:
 ## Document Control
-(table with title, ID, version, date, department, classification, owner, reviewer)
 ## 1. Purpose
-(2-3 paragraphs explaining why this document exists, what problem it solves, and what outcome is expected)
 ## 2. Scope
-(who this applies to, what systems/processes are covered, any exclusions)
 ## 3. Definitions
-(key terms and abbreviations used in this document)
 ## 4. Roles and Responsibilities
-(RACI-style breakdown of who does what)
 ## 5. Procedure
-(detailed step-by-step process incorporating the specific rules, exceptions, and operational details from the interview answers)
 ## 6. Exceptions and Special Cases
-(how to handle deviations — use the specific scenarios mentioned in the interview)
 ## 7. Monitoring and Compliance
-(how compliance is measured, KPIs, audit approach)
 ## 8. Related Documents
-(other policies/SOPs this connects to)
 ## 9. Revision History
-(table with version, date, author, changes)
 
 Important:
-- Reference specific ${frameworkList} control numbers where relevant
-- Use the specific details from the interview answers where applicable
-- Write in a human, expert voice — not a template
+- Use the interview details where relevant
 - Be specific and practical, not generic
-- Each section should have real content, not placeholder text`
-
+- Keep the document concise but complete
+- Include framework control references only where clearly relevant
+- Do not add filler text`
   try {
     const message = await anthropic.messages.create({
       model: 'claude-sonnet-4-20250514',
-      max_tokens: 6000,
+      max_tokens: 2800,
       system: systemPrompt,
       messages: [{ role: 'user', content: userPrompt }],
     })

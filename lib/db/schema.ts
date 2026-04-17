@@ -5,7 +5,7 @@ export const tenants = pgTable('tenants', {
   id: uuid('id').defaultRandom().primaryKey(),
   name: text('name').notNull(),
   slug: text('slug').notNull().unique(),
-  plan: text('plan').notNull().default('free'), // free | professional | business | enterprise
+  plan: text('plan').notNull().default('free'), // free | starter | enterprise
   logoUrl: text('logo_url'),
   primaryColor: text('primary_color').default('#0071e3'),
   customDomain: text('custom_domain'),
