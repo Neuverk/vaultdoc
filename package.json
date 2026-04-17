@@ -16,6 +16,8 @@
     "@neondatabase/serverless": "^1.0.2",
     "@stripe/stripe-js": "^9.1.0",
     "@uiw/react-md-editor": "^4.1.0",
+    "@upstash/ratelimit": "^2.0.8",
+    "@upstash/redis": "^1.37.0",
     "docx": "^9.6.1",
     "dotenv-cli": "^11.0.0",
     "drizzle-kit": "^0.31.10",

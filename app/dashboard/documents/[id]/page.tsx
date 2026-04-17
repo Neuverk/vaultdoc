@@ -5,6 +5,8 @@ import { eq } from 'drizzle-orm'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { createAuditLog } from '@/lib/audit'
+import { DeleteButton } from './delete-button'
+import { ReviseButton } from './revise-button'
 
 export default async function DocumentPage({
   params,
@@ -105,6 +107,12 @@ export default async function DocumentPage({
           </div>
 
           <div className="flex shrink-0 items-center gap-2">
+            {doc.tenantId === dbUser.tenantId && (
+              <>
+                <ReviseButton documentId={doc.id} originalLanguage={doc.language ?? 'English'} />
+                <DeleteButton documentId={doc.id} />
+              </>
+            )}
             <Link
               href="/dashboard/library"
               className="inline-flex items-center justify-center rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm transition hover:bg-gray-50"

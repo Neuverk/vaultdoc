@@ -1,9 +1,55 @@
+import Link from 'next/link'
+
 export default function TermsPage() {
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="mx-auto max-w-3xl px-6 py-16">
-        <div className="rounded-2xl border border-gray-200 bg-white px-10 py-12 shadow-sm">
+    <div className="min-h-screen overflow-x-hidden bg-gray-50 text-gray-900">
+      {/* Header */}
+      <header className="sticky top-0 z-50 border-b border-gray-200 bg-white/90 backdrop-blur-xl">
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4 lg:px-8">
+          <div className="flex items-center gap-3">
+            <Link href="/" className="flex items-center gap-3">
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl border border-gray-200 bg-white shadow-sm">
+                <span className="text-sm font-semibold text-gray-900">V</span>
+              </div>
+              <div className="flex flex-col leading-tight">
+                <span className="text-sm font-semibold text-gray-900">VaultDoc</span>
+                <span className="text-xs text-gray-500">Neuverk</span>
+              </div>
+            </Link>
+          </div>
 
+          <div className="hidden items-center gap-8 md:flex">
+            <Link href="/#features" className="text-sm text-gray-500 transition hover:text-gray-900">
+              Features
+            </Link>
+            <Link href="/#pricing" className="text-sm text-gray-500 transition hover:text-gray-900">
+              Pricing
+            </Link>
+            <a
+              href="mailto:support@neuverk.com"
+              className="text-sm text-gray-500 transition hover:text-gray-900"
+            >
+              Support
+            </a>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <Link href="/sign-in" className="text-sm font-medium text-gray-600 transition hover:text-gray-900">
+              Sign in
+            </Link>
+            <Link
+              href="/sign-up"
+              className="inline-flex items-center justify-center rounded-xl bg-gray-900 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-gray-800"
+            >
+              Get started free
+            </Link>
+          </div>
+        </div>
+      </header>
+
+      {/* Terms content */}
+      <main className="mx-auto max-w-3xl px-6 py-16">
+        <div className="rounded-2xl border border-gray-200 bg-white px-10 py-12 shadow-sm">
           <div className="mb-10 border-b border-gray-100 pb-8">
             <h1 className="text-3xl font-semibold tracking-tight text-gray-900">Terms of Service</h1>
             <p className="mt-2 text-sm text-gray-500">Last updated: 17 April 2026</p>
@@ -130,7 +176,7 @@ export default function TermsPage() {
 
           <Section title="7. AI-Generated Content Disclaimer">
             <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
-              <p className="font-semibold mb-1">Important — please read carefully</p>
+              <p className="mb-1 font-semibold">Important — please read carefully</p>
               <p>
                 VaultDoc uses artificial intelligence to generate compliance documentation. All
                 AI-generated documents are provided as a starting point and drafting aid only.
@@ -171,13 +217,13 @@ export default function TermsPage() {
           <Section title="9. Data Protection">
             <p>
               Our collection and use of personal data is governed by our{' '}
-              <a href="/privacy" className="text-blue-600 hover:underline">
+              <Link href="/privacy" className="text-blue-600 hover:underline">
                 Privacy Policy
-              </a>{' '}
+              </Link>{' '}
               and, where applicable, our{' '}
-              <a href="/dpa" className="text-blue-600 hover:underline">
+              <Link href="/dpa" className="text-blue-600 hover:underline">
                 Data Processing Agreement
-              </a>
+              </Link>
               . By using VaultDoc, you acknowledge that you have read and understood our
               Privacy Policy.
             </p>
@@ -265,9 +311,7 @@ export default function TermsPage() {
           </Section>
 
           <Section title="15. Contact">
-            <p>
-              For any questions regarding these Terms, please contact:
-            </p>
+            <p>For any questions regarding these Terms, please contact:</p>
             <div className="mt-3 rounded-xl border border-gray-200 bg-gray-50 p-4 text-sm text-gray-700">
               <p className="font-semibold text-gray-900">Neuverk</p>
               <p>Munich, Germany</p>
@@ -279,9 +323,90 @@ export default function TermsPage() {
               </p>
             </div>
           </Section>
-
         </div>
-      </div>
+      </main>
+
+      {/* Footer */}
+      <footer className="border-t border-gray-200 bg-white">
+        <div className="mx-auto max-w-7xl px-6 py-10 lg:px-8">
+          <div className="grid gap-8 lg:grid-cols-[1.5fr_0.7fr_0.7fr_0.8fr]">
+            <div>
+              <Link href="/" className="flex items-center gap-3">
+                <div className="flex h-9 w-9 items-center justify-center rounded-xl border border-gray-200 bg-white shadow-sm">
+                  <span className="text-sm font-semibold text-gray-900">V</span>
+                </div>
+                <div className="flex flex-col leading-tight">
+                  <span className="text-sm font-semibold text-gray-900">VaultDoc</span>
+                  <span className="text-xs text-gray-500">Neuverk</span>
+                </div>
+              </Link>
+
+              <p className="mt-4 max-w-sm text-sm leading-6 text-gray-500">
+                AI-powered compliance documentation platform built for enterprise teams
+                with a GDPR-first, EU-focused approach.
+              </p>
+            </div>
+
+            <div>
+              <p className="text-sm font-semibold text-gray-900">Product</p>
+              <ul className="mt-3 space-y-2">
+                <li>
+                  <Link href="/#features" className="text-sm text-gray-500 hover:text-gray-900">
+                    Features
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/#pricing" className="text-sm text-gray-500 hover:text-gray-900">
+                    Pricing
+                  </Link>
+                </li>
+              </ul>
+            </div>
+
+            <div>
+              <p className="text-sm font-semibold text-gray-900">Account</p>
+              <ul className="mt-3 space-y-2">
+                <li>
+                  <Link href="/sign-in" className="text-sm text-gray-500 hover:text-gray-900">
+                    Sign in
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/sign-up" className="text-sm text-gray-500 hover:text-gray-900">
+                    Get started
+                  </Link>
+                </li>
+              </ul>
+            </div>
+
+            <div>
+              <p className="text-sm font-semibold text-gray-900">Legal</p>
+              <ul className="mt-3 space-y-2">
+                <li>
+                  <Link href="/privacy" className="text-sm text-gray-500 hover:text-gray-900">
+                    Privacy Policy
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/terms" className="text-sm text-gray-500 hover:text-gray-900">
+                    Terms of Service
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/dpa" className="text-sm text-gray-500 hover:text-gray-900">
+                    DPA
+                  </Link>
+                </li>
+              </ul>
+            </div>
+          </div>
+
+          <div className="mt-8 flex flex-col gap-2 border-t border-gray-200 pt-6 text-xs text-gray-400 sm:flex-row sm:items-center sm:justify-between">
+            <p>© 2025 Neuverk. All rights reserved.</p>
+            <p>GDPR-first · EU-focused · Enterprise-ready</p>
+          </div>
+        </div>
+      </footer>
     </div>
   )
 }

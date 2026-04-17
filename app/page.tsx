@@ -102,8 +102,8 @@ export default function HomePage() {
               <span className="text-sm font-semibold text-gray-900">V</span>
             </div>
             <div className="flex flex-col leading-tight">
-              <span className="text-sm font-semibold text-gray-900">VaultDoc test Website </span>
-              <span className="text-xs text-gray-500">by Neuverk</span>
+              <span className="text-sm font-semibold text-gray-900">VaultDoc</span>
+              <span className="text-xs text-gray-500">Neuverk</span>
             </div>
           </div>
 
@@ -349,7 +349,7 @@ export default function HomePage() {
               </div>
               <div className="flex flex-col leading-tight">
                 <span className="text-sm font-semibold text-gray-900">VaultDoc</span>
-                <span className="text-xs text-gray-500">by Neuverk</span>
+                <span className="text-xs text-gray-500">Neuverk</span>
               </div>
             </div>
 

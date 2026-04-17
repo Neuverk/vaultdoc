@@ -12,7 +12,7 @@ export default async function Navbar() {
           </div>
           <div className="flex flex-col leading-tight">
             <span className="text-sm font-semibold tracking-tight text-gray-900">VaultDoc</span>
-            <span className="text-xs font-medium text-gray-500">by Neuverk</span>
+            <span className="text-xs font-medium text-gray-500">Neuverk</span>
           </div>
         </a>
         <div className="flex items-center gap-3">

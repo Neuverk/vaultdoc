@@ -114,11 +114,11 @@ export async function POST(req: NextRequest) {
   const plan = await getUserPlan(userId)
   const chatLimit = CHAT_LIMITS[plan] ?? CHAT_LIMITS.free
 
-  const rateLimit = checkRateLimit(
-    `documents:chat:${userId}`,
-    chatLimit,
-    CHAT_WINDOW_MS,
-  )
+ const rateLimit = await checkRateLimit(
+  `documents:chat:${userId}`,
+  chatLimit,
+  CHAT_WINDOW_MS,
+)
 
   if (!rateLimit.success) {
     return new Response(
@@ -154,7 +154,7 @@ export async function POST(req: NextRequest) {
 
   const messages = sanitizeMessages(body?.messages)
 
-  console.log('Chat route received messages:', messages)
+  console.log('Chat route received messages count:', messages.length)
 
   if (messages.length === 0) {
     console.error('Chat route: no valid messages after sanitization', body)

@@ -1,9 +1,55 @@
+import Link from 'next/link'
+
 export default function PrivacyPage() {
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="mx-auto max-w-3xl px-6 py-16">
-        <div className="rounded-2xl border border-gray-200 bg-white px-10 py-12 shadow-sm">
+    <div className="min-h-screen overflow-x-hidden bg-gray-50 text-gray-900">
+      {/* Header */}
+      <header className="sticky top-0 z-50 border-b border-gray-200 bg-white/90 backdrop-blur-xl">
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4 lg:px-8">
+          <div className="flex items-center gap-3">
+            <Link href="/" className="flex items-center gap-3">
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl border border-gray-200 bg-white shadow-sm">
+                <span className="text-sm font-semibold text-gray-900">V</span>
+              </div>
+              <div className="flex flex-col leading-tight">
+                <span className="text-sm font-semibold text-gray-900">VaultDoc</span>
+                <span className="text-xs text-gray-500">Neuverk</span>
+              </div>
+            </Link>
+          </div>
 
+          <div className="hidden items-center gap-8 md:flex">
+            <Link href="/#features" className="text-sm text-gray-500 transition hover:text-gray-900">
+              Features
+            </Link>
+            <Link href="/#pricing" className="text-sm text-gray-500 transition hover:text-gray-900">
+              Pricing
+            </Link>
+            <a
+              href="mailto:support@neuverk.com"
+              className="text-sm text-gray-500 transition hover:text-gray-900"
+            >
+              Support
+            </a>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <Link href="/sign-in" className="text-sm font-medium text-gray-600 transition hover:text-gray-900">
+              Sign in
+            </Link>
+            <Link
+              href="/sign-up"
+              className="inline-flex items-center justify-center rounded-xl bg-gray-900 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-gray-800"
+            >
+              Get started free
+            </Link>
+          </div>
+        </div>
+      </header>
+
+      {/* Privacy content */}
+      <main className="mx-auto max-w-3xl px-6 py-16">
+        <div className="rounded-2xl border border-gray-200 bg-white px-10 py-12 shadow-sm">
           <div className="mb-10 border-b border-gray-100 pb-8">
             <h1 className="text-3xl font-semibold tracking-tight text-gray-900">Privacy Policy</h1>
             <p className="mt-2 text-sm text-gray-500">Last updated: 17 April 2026</p>
@@ -16,13 +62,16 @@ export default function PrivacyPage() {
           </div>
 
           <Section title="1. Data Controller">
-            <p>
-              The data controller responsible for your personal data is:
-            </p>
+            <p>The data controller responsible for your personal data is:</p>
             <div className="mt-3 rounded-xl border border-gray-200 bg-gray-50 p-4 text-sm text-gray-700">
               <p className="font-semibold text-gray-900">Neuverk</p>
               <p>Munich, Germany</p>
-              <p>Email: <a href="mailto:privacy@neuverk.com" className="text-blue-600 hover:underline">privacy@neuverk.com</a></p>
+              <p>
+                Email:{' '}
+                <a href="mailto:privacy@neuverk.com" className="text-blue-600 hover:underline">
+                  privacy@neuverk.com
+                </a>
+              </p>
             </div>
             <p className="mt-3 text-sm text-gray-500">
               Note: Neuverk is currently in the process of formal registration. Registered office
@@ -72,16 +121,29 @@ export default function PrivacyPage() {
           <Section title="3. Legal Basis for Processing">
             <p>We process your personal data on the following legal bases under GDPR Article 6:</p>
             <ul className="mt-3 space-y-2 text-sm text-gray-600">
-              <li className="flex gap-2"><span className="font-semibold text-gray-800 shrink-0">Contract (Art. 6.1.b):</span> To provide the VaultDoc service you have subscribed to, including document generation, storage, and export.</li>
-              <li className="flex gap-2"><span className="font-semibold text-gray-800 shrink-0">Legitimate interest (Art. 6.1.f):</span> To improve the platform, monitor security, prevent fraud, and maintain service reliability.</li>
-              <li className="flex gap-2"><span className="font-semibold text-gray-800 shrink-0">Legal obligation (Art. 6.1.c):</span> To comply with applicable tax, financial, and regulatory requirements.</li>
-              <li className="flex gap-2"><span className="font-semibold text-gray-800 shrink-0">Consent (Art. 6.1.a):</span> For optional cookies and analytics where consent is obtained via our cookie banner.</li>
+              <li className="flex gap-2">
+                <span className="shrink-0 font-semibold text-gray-800">Contract (Art. 6.1.b):</span>
+                To provide the VaultDoc service you have subscribed to, including document generation,
+                storage, and export.
+              </li>
+              <li className="flex gap-2">
+                <span className="shrink-0 font-semibold text-gray-800">Legitimate interest (Art. 6.1.f):</span>
+                To improve the platform, monitor security, prevent fraud, and maintain service reliability.
+              </li>
+              <li className="flex gap-2">
+                <span className="shrink-0 font-semibold text-gray-800">Legal obligation (Art. 6.1.c):</span>
+                To comply with applicable tax, financial, and regulatory requirements.
+              </li>
+              <li className="flex gap-2">
+                <span className="shrink-0 font-semibold text-gray-800">Consent (Art. 6.1.a):</span>
+                For optional cookies and analytics where consent is obtained via our cookie banner.
+              </li>
             </ul>
           </Section>
 
           <Section title="4. AI Processing — Anthropic">
             <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
-              <p className="font-semibold mb-1">Important notice regarding AI processing</p>
+              <p className="mb-1 font-semibold">Important notice regarding AI processing</p>
               <p>
                 Document inputs you provide — including titles, department names, compliance
                 framework selections, and answers to guided questions — may be transmitted to
@@ -92,10 +154,9 @@ export default function PrivacyPage() {
             </div>
             <p className="mt-3">
               Anthropic is a third-party AI provider based in the United States. Data transmitted
-              to Anthropic is subject to Anthropic&apos;s own privacy policy and terms of service,
-              available at anthropic.com. We are in the process of establishing appropriate
-              contractual safeguards for international data transfers to Anthropic in accordance
-              with GDPR Chapter V.
+              to Anthropic is subject to Anthropic&apos;s own privacy policy and terms of service.
+              We are in the process of establishing appropriate contractual safeguards for
+              international data transfers to Anthropic in accordance with GDPR Chapter V.
             </p>
             <p className="mt-3">
               We do not transmit your name, email address, payment information, or account
@@ -113,9 +174,15 @@ export default function PrivacyPage() {
               <table className="min-w-full text-sm">
                 <thead>
                   <tr className="border-b border-gray-200 bg-gray-50">
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Sub-processor</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Purpose</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Location</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">
+                      Sub-processor
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">
+                      Purpose
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">
+                      Location
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
@@ -155,11 +222,26 @@ export default function PrivacyPage() {
 
           <Section title="6. Data Retention">
             <ul className="space-y-2 text-sm text-gray-600">
-              <li><span className="font-semibold text-gray-800">Account data:</span> Retained for the duration of your account. Deleted within 30 days of account deletion request.</li>
-              <li><span className="font-semibold text-gray-800">Document content:</span> Retained until you delete the document or your account. You can delete individual documents from your library at any time.</li>
-              <li><span className="font-semibold text-gray-800">Billing records:</span> Retained for 10 years to comply with German commercial law (HGB § 257).</li>
-              <li><span className="font-semibold text-gray-800">Usage and audit logs:</span> Retained for 12 months for security and operational purposes.</li>
-              <li><span className="font-semibold text-gray-800">Stripe customer data:</span> Retained per Stripe&apos;s retention policy; billing identifiers retained for the duration required by law.</li>
+              <li>
+                <span className="font-semibold text-gray-800">Account data:</span> Retained for the duration of your
+                account. Deleted within 30 days of account deletion request.
+              </li>
+              <li>
+                <span className="font-semibold text-gray-800">Document content:</span> Retained until you delete the
+                document or your account. You can delete individual documents from your library at any time.
+              </li>
+              <li>
+                <span className="font-semibold text-gray-800">Billing records:</span> Retained for 10 years to comply
+                with German commercial law (HGB § 257).
+              </li>
+              <li>
+                <span className="font-semibold text-gray-800">Usage and audit logs:</span> Retained for 12 months for
+                security and operational purposes.
+              </li>
+              <li>
+                <span className="font-semibold text-gray-800">Stripe customer data:</span> Retained per Stripe&apos;s
+                retention policy; billing identifiers retained for the duration required by law.
+              </li>
             </ul>
           </Section>
 
@@ -169,16 +251,38 @@ export default function PrivacyPage() {
               exercise any of these rights, contact us at{' '}
               <a href="mailto:privacy@neuverk.com" className="text-blue-600 hover:underline">
                 privacy@neuverk.com
-              </a>.
+              </a>
+              .
             </p>
             <ul className="mt-3 space-y-2 text-sm text-gray-600">
-              <li><span className="font-semibold text-gray-800">Right of access (Art. 15):</span> Request a copy of the personal data we hold about you.</li>
-              <li><span className="font-semibold text-gray-800">Right to rectification (Art. 16):</span> Request correction of inaccurate personal data.</li>
-              <li><span className="font-semibold text-gray-800">Right to erasure (Art. 17):</span> Request deletion of your personal data. You can delete your account directly from your billing settings.</li>
-              <li><span className="font-semibold text-gray-800">Right to restriction (Art. 18):</span> Request that we restrict processing of your data in certain circumstances.</li>
-              <li><span className="font-semibold text-gray-800">Right to portability (Art. 20):</span> Request your data in a structured, machine-readable format.</li>
-              <li><span className="font-semibold text-gray-800">Right to object (Art. 21):</span> Object to processing based on legitimate interests.</li>
-              <li><span className="font-semibold text-gray-800">Right to withdraw consent (Art. 7.3):</span> Withdraw consent for optional processing at any time.</li>
+              <li>
+                <span className="font-semibold text-gray-800">Right of access (Art. 15):</span> Request a copy of the
+                personal data we hold about you.
+              </li>
+              <li>
+                <span className="font-semibold text-gray-800">Right to rectification (Art. 16):</span> Request
+                correction of inaccurate personal data.
+              </li>
+              <li>
+                <span className="font-semibold text-gray-800">Right to erasure (Art. 17):</span> Request deletion of
+                your personal data. You can delete your account directly from your billing settings.
+              </li>
+              <li>
+                <span className="font-semibold text-gray-800">Right to restriction (Art. 18):</span> Request that we
+                restrict processing of your data in certain circumstances.
+              </li>
+              <li>
+                <span className="font-semibold text-gray-800">Right to portability (Art. 20):</span> Request your data
+                in a structured, machine-readable format.
+              </li>
+              <li>
+                <span className="font-semibold text-gray-800">Right to object (Art. 21):</span> Object to processing
+                based on legitimate interests.
+              </li>
+              <li>
+                <span className="font-semibold text-gray-800">Right to withdraw consent (Art. 7.3):</span> Withdraw
+                consent for optional processing at any time.
+              </li>
             </ul>
             <p className="mt-3">
               You also have the right to lodge a complaint with your local data protection
@@ -247,9 +351,90 @@ export default function PrivacyPage() {
               We aim to respond to all privacy requests within 30 days.
             </p>
           </Section>
-
         </div>
-      </div>
+      </main>
+
+      {/* Footer */}
+      <footer className="border-t border-gray-200 bg-white">
+        <div className="mx-auto max-w-7xl px-6 py-10 lg:px-8">
+          <div className="grid gap-8 lg:grid-cols-[1.5fr_0.7fr_0.7fr_0.8fr]">
+            <div>
+              <Link href="/" className="flex items-center gap-3">
+                <div className="flex h-9 w-9 items-center justify-center rounded-xl border border-gray-200 bg-white shadow-sm">
+                  <span className="text-sm font-semibold text-gray-900">V</span>
+                </div>
+                <div className="flex flex-col leading-tight">
+                  <span className="text-sm font-semibold text-gray-900">VaultDoc</span>
+                  <span className="text-xs text-gray-500">Neuverk</span>
+                </div>
+              </Link>
+
+              <p className="mt-4 max-w-sm text-sm leading-6 text-gray-500">
+                AI-powered compliance documentation platform built for enterprise teams
+                with a GDPR-first, EU-focused approach.
+              </p>
+            </div>
+
+            <div>
+              <p className="text-sm font-semibold text-gray-900">Product</p>
+              <ul className="mt-3 space-y-2">
+                <li>
+                  <Link href="/#features" className="text-sm text-gray-500 hover:text-gray-900">
+                    Features
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/#pricing" className="text-sm text-gray-500 hover:text-gray-900">
+                    Pricing
+                  </Link>
+                </li>
+              </ul>
+            </div>
+
+            <div>
+              <p className="text-sm font-semibold text-gray-900">Account</p>
+              <ul className="mt-3 space-y-2">
+                <li>
+                  <Link href="/sign-in" className="text-sm text-gray-500 hover:text-gray-900">
+                    Sign in
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/sign-up" className="text-sm text-gray-500 hover:text-gray-900">
+                    Get started
+                  </Link>
+                </li>
+              </ul>
+            </div>
+
+            <div>
+              <p className="text-sm font-semibold text-gray-900">Legal</p>
+              <ul className="mt-3 space-y-2">
+                <li>
+                  <Link href="/privacy" className="text-sm text-gray-500 hover:text-gray-900">
+                    Privacy Policy
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/terms" className="text-sm text-gray-500 hover:text-gray-900">
+                    Terms of Service
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/dpa" className="text-sm text-gray-500 hover:text-gray-900">
+                    DPA
+                  </Link>
+                </li>
+              </ul>
+            </div>
+          </div>
+
+          <div className="mt-8 flex flex-col gap-2 border-t border-gray-200 pt-6 text-xs text-gray-400 sm:flex-row sm:items-center sm:justify-between">
+            <p>© 2025 Neuverk. All rights reserved.</p>
+            <p>GDPR-first · EU-focused · Enterprise-ready</p>
+          </div>
+        </div>
+      </footer>
     </div>
   )
 }

@@ -92,11 +92,11 @@ export async function POST(req: NextRequest) {
     return new Response('Unauthorized', { status: 401 })
   }
 
-  const rateLimit = checkRateLimit(
-    `documents:generate:${userId}`,
-    GENERATE_LIMIT,
-    GENERATE_WINDOW_MS,
-  )
+  const rateLimit = await checkRateLimit(
+  `documents:generate:${userId}`,
+  GENERATE_LIMIT,
+  GENERATE_WINDOW_MS,
+)
 
   if (!rateLimit.success) {
     return new Response(
