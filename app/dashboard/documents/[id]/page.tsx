@@ -13,11 +13,13 @@ export default async function DocumentPage({
 }) {
   const { id } = await params
   const { userId } = await auth()
+
   if (!userId) return notFound()
 
   const dbUser = await db.query.users.findFirst({
     where: eq(users.clerkId, userId),
   })
+
   if (!dbUser) return notFound()
 
   const doc = await db.query.documents.findFirst({
@@ -165,6 +167,7 @@ export default async function DocumentPage({
             <p className="text-sm font-medium text-gray-900">Document content</p>
             <p className="text-xs text-gray-400">Read only</p>
           </div>
+
           <div className="px-8 py-8">
             <DocumentContent content={doc.content || ''} />
           </div>
@@ -193,7 +196,10 @@ function DocumentContent({ content }: { content: string }) {
 
         if (line.startsWith('### ')) {
           return (
-            <h3 key={i} className="mt-6 mb-2 text-base font-semibold text-gray-900">
+            <h3
+              key={i}
+              className="mt-6 mb-2 text-base font-semibold text-gray-900"
+            >
               {line.replace('### ', '')}
             </h3>
           )
@@ -201,7 +207,10 @@ function DocumentContent({ content }: { content: string }) {
 
         if (line.startsWith('#### ')) {
           return (
-            <h4 key={i} className="mt-4 mb-1 text-sm font-semibold text-gray-900">
+            <h4
+              key={i}
+              className="mt-4 mb-1 text-sm font-semibold text-gray-900"
+            >
               {line.replace('#### ', '')}
             </h4>
           )

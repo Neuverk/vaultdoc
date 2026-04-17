@@ -1,239 +1,305 @@
-import Link from "next/link";
-
-export const metadata = {
-  title: "Terms of Service | VaultDoc",
-  description: "Terms and conditions governing use of the VaultDoc compliance documentation platform.",
-};
-
-const LAST_UPDATED = "1 January 2025";
-const CONTACT_EMAIL = "legal@neuverk.com";
-const COMPANY = "Neuverk UG (haftungsbeschränkt)";
-const COMPANY_SHORT = "Neuverk";
-
-export default function TermsOfServicePage() {
+export default function TermsPage() {
   return (
     <div className="min-h-screen bg-gray-50">
-      <header className="bg-white border-b border-gray-200">
-        <div className="max-w-5xl mx-auto px-6 py-4 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-3 transition-opacity hover:opacity-80">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-gray-200 bg-white shadow-sm">
-              <span className="text-sm font-semibold tracking-tight text-gray-900">V</span>
-            </div>
-            <div className="flex flex-col leading-tight">
-              <span className="text-sm font-semibold tracking-tight text-gray-900">VaultDoc</span>
-              <span className="text-xs font-medium text-gray-500">by Neuverk</span>
-            </div>
-          </Link>
-          <nav className="flex gap-6 text-sm text-gray-500">
-            <Link href="/privacy" className="hover:text-gray-900 transition-colors">Privacy Policy</Link>
-            <Link href="/dpa" className="hover:text-gray-900 transition-colors">DPA</Link>
-          </nav>
-        </div>
-      </header>
+      <div className="mx-auto max-w-3xl px-6 py-16">
+        <div className="rounded-2xl border border-gray-200 bg-white px-10 py-12 shadow-sm">
 
-      <main className="max-w-3xl mx-auto px-6 py-14">
-        <div className="mb-12">
-          <p className="text-xs font-semibold tracking-widest uppercase text-gray-400 mb-3">Legal</p>
-          <h1 className="text-4xl font-bold tracking-tight text-gray-900 mb-3">Terms of Service</h1>
-          <p className="text-sm text-gray-400">Last updated: <span className="text-gray-600">{LAST_UPDATED}</span></p>
-        </div>
-
-        <div className="bg-white border border-gray-200 rounded-xl p-7 mb-4">
-          <p className="text-gray-600 leading-relaxed">
-            These Terms of Service ("<strong className="text-gray-900">Terms</strong>") govern your access to and use of the VaultDoc platform operated by{" "}
-            <strong className="text-gray-900">{COMPANY}</strong> ("{COMPANY_SHORT}", "we", "us", "our") at vaultdoc.neuverk.com. By creating an account or using VaultDoc, you agree to these Terms. If you do not agree, do not use the service.
-          </p>
-          <p className="text-gray-600 leading-relaxed mt-4">
-            For questions about these Terms, contact us at{" "}
-            <a href={`mailto:${CONTACT_EMAIL}`} className="text-gray-900 font-medium hover:underline">{CONTACT_EMAIL}</a>.
-          </p>
-        </div>
-
-        <Section title="1. The Service">
-          <p className="text-gray-600 leading-relaxed">
-            VaultDoc is a compliance documentation platform that uses artificial intelligence to help organisations generate, store, and manage compliance documents. The service is provided on a subscription basis with a free tier and paid plans as described on our pricing page.
-          </p>
-          <p className="text-gray-600 leading-relaxed mt-4">
-            We reserve the right to modify, suspend, or discontinue any part of the service at any time with reasonable notice. We will not be liable to you or any third party for any modification, suspension, or discontinuation of the service.
-          </p>
-        </Section>
-
-        <Section title="2. Eligibility and Account Registration">
-          <p className="text-gray-600 leading-relaxed mb-4">To use VaultDoc you must:</p>
-          <ul className="space-y-2 text-sm text-gray-600">
-            {[
-              "Be at least 18 years of age",
-              "Have the legal capacity to enter into a binding contract",
-              "If registering on behalf of an organisation, have authority to bind that organisation to these Terms",
-              "Not be located in a country subject to EU or German trade sanctions",
-            ].map((item) => (
-              <li key={item} className="flex gap-3">
-                <span className="text-gray-300 shrink-0 mt-0.5">—</span>
-                <span>{item}</span>
-              </li>
-            ))}
-          </ul>
-          <p className="text-gray-600 leading-relaxed mt-4">
-            You are responsible for maintaining the confidentiality of your account credentials and for all activity that occurs under your account. Notify us immediately at{" "}
-            <a href={`mailto:${CONTACT_EMAIL}`} className="text-gray-900 font-medium hover:underline">{CONTACT_EMAIL}</a> if you suspect unauthorised access.
-          </p>
-        </Section>
-
-        <Section title="3. Acceptable Use">
-          <p className="text-gray-600 leading-relaxed mb-4">You may use VaultDoc only for lawful purposes. You agree not to:</p>
-          <ul className="space-y-2 text-sm text-gray-600">
-            {[
-              "Use the service to generate documents intended to deceive, defraud, or mislead any person or authority",
-              "Attempt to reverse-engineer, scrape, or extract data from the platform in an automated manner without prior written consent",
-              "Upload or input content that infringes third-party intellectual property rights",
-              "Input sensitive personal data of third parties (e.g. national ID numbers, health records, financial account details) into document generation fields",
-              "Attempt to circumvent plan limits, rate limiting, or access controls",
-              "Use the service to train or fine-tune competing AI models",
-              "Resell, sublicense, or white-label the service without a separate written agreement with Neuverk",
-              "Use the service in any way that violates applicable law or regulation",
-            ].map((item) => (
-              <li key={item} className="flex gap-3">
-                <span className="text-gray-300 shrink-0 mt-0.5">—</span>
-                <span>{item}</span>
-              </li>
-            ))}
-          </ul>
-          <p className="text-gray-600 leading-relaxed mt-4">
-            We reserve the right to suspend or terminate accounts that violate these provisions without prior notice.
-          </p>
-        </Section>
-
-        <Section title="4. AI-Generated Content — Important Disclaimer">
-          <div className="bg-amber-50 border border-amber-200 rounded-lg p-5">
-            <p className="text-gray-900 font-semibold mb-3">
-              Documents generated by VaultDoc are produced by artificial intelligence and must be reviewed by a qualified professional before use.
+          <div className="mb-10 border-b border-gray-100 pb-8">
+            <h1 className="text-3xl font-semibold tracking-tight text-gray-900">Terms of Service</h1>
+            <p className="mt-2 text-sm text-gray-500">Last updated: 17 April 2026</p>
+            <p className="mt-4 text-sm leading-7 text-gray-600">
+              These Terms of Service (&ldquo;Terms&rdquo;) govern your access to and use of VaultDoc,
+              operated by Neuverk (&ldquo;we&rdquo;, &ldquo;us&rdquo;, &ldquo;our&rdquo;). By creating an account or using
+              VaultDoc, you agree to these Terms. If you do not agree, you must not use the service.
             </p>
-            <ul className="space-y-2 text-sm text-gray-600">
-              <li className="flex gap-3"><span className="text-amber-600 font-bold shrink-0">—</span><span>AI-generated compliance documents do not constitute legal, regulatory, financial, or professional advice.</span></li>
-              <li className="flex gap-3"><span className="text-amber-600 font-bold shrink-0">—</span><span>VaultDoc does not guarantee that generated documents are accurate, complete, up-to-date, or suitable for any specific regulatory requirement.</span></li>
-              <li className="flex gap-3"><span className="text-amber-600 font-bold shrink-0">—</span><span>You are solely responsible for ensuring that any document you use or submit to a regulatory authority complies with applicable law.</span></li>
-              <li className="flex gap-3"><span className="text-amber-600 font-bold shrink-0">—</span><span>We strongly recommend that all generated documents be reviewed by a qualified legal, compliance, or data protection professional before use.</span></li>
+          </div>
+
+          <Section title="1. About VaultDoc">
+            <p>
+              VaultDoc is an AI-powered compliance documentation platform that helps organisations
+              generate, manage, and export compliance-related documents including policies, standard
+              operating procedures, and runbooks. The service is provided by Neuverk, a company
+              based in Munich, Germany.
+            </p>
+            <div className="mt-3 rounded-xl border border-gray-200 bg-gray-50 p-4 text-sm text-gray-700">
+              <p className="font-semibold text-gray-900">Neuverk</p>
+              <p>Munich, Germany</p>
+              <p>
+                Email:{' '}
+                <a href="mailto:contact@neuverk.com" className="text-blue-600 hover:underline">
+                  contact@neuverk.com
+                </a>
+              </p>
+            </div>
+          </Section>
+
+          <Section title="2. Eligibility">
+            <p>
+              You must be at least 18 years of age and have the legal authority to enter into
+              binding contracts to use VaultDoc. If you are using VaultDoc on behalf of an
+              organisation, you represent that you have authority to bind that organisation to
+              these Terms.
+            </p>
+          </Section>
+
+          <Section title="3. Account Registration">
+            <p>
+              To access VaultDoc, you must create an account using a valid email address or
+              an approved SSO provider (Google, Microsoft). You are responsible for:
+            </p>
+            <ul className="mt-2 space-y-1 text-sm text-gray-600">
+              <li>— Maintaining the confidentiality of your account credentials</li>
+              <li>— All activity that occurs under your account</li>
+              <li>— Notifying us immediately of any unauthorised use of your account</li>
             </ul>
-          </div>
-        </Section>
+            <p className="mt-3">
+              We reserve the right to suspend or terminate accounts that violate these Terms
+              or are used for fraudulent or abusive activity.
+            </p>
+          </Section>
 
-        <Section title="5. Subscription Plans and Billing">
-          <div className="space-y-3">
-            <Clause title="5.1 Plans">VaultDoc offers a free tier and paid subscription plans (currently Starter at €49/month and Enterprise at €199/month). Plan features and limits are described on the pricing page and may be updated from time to time with reasonable notice.</Clause>
-            <Clause title="5.2 Billing">Paid subscriptions are billed monthly in advance via Stripe. By subscribing, you authorise Neuverk to charge your payment method on a recurring basis until you cancel. All prices are exclusive of VAT where applicable. VAT will be added at the applicable rate based on your billing address.</Clause>
-            <Clause title="5.3 Free Tier Limits">Free tier accounts are limited to 3 generated documents. Exceeding this limit requires upgrading to a paid plan. We reserve the right to modify free tier limits at any time with 30 days notice.</Clause>
-            <Clause title="5.4 Cancellation">You may cancel your subscription at any time from the billing section of your dashboard. Cancellation takes effect at the end of the current billing period. You will retain access to paid features until that date.</Clause>
-            <Clause title="5.5 Refund Policy">We offer a 14-day money-back guarantee for first-time paid subscriptions. If you are not satisfied within 14 days of your first payment, contact us at legal@neuverk.com for a full refund. After 14 days, payments are non-refundable except where required by applicable EU consumer law. Partial-month refunds are not provided.</Clause>
-            <Clause title="5.6 Price Changes">We may change subscription prices with at least 30 days written notice by email. Continued use of the service after a price change constitutes acceptance of the new price.</Clause>
-          </div>
-        </Section>
+          <Section title="4. Subscription Plans and Billing">
+            <p>
+              VaultDoc is offered on a subscription basis. Current plans and pricing are
+              displayed on our pricing page. By subscribing to a paid plan, you authorise
+              us to charge the applicable fees to your payment method via Stripe.
+            </p>
+            <SubSection title="Free plan">
+              <p>
+                The free plan includes limited document generation with watermarked exports.
+                No payment method is required for the free plan.
+              </p>
+            </SubSection>
+            <SubSection title="Paid plans">
+              <p>
+                Paid subscriptions are billed monthly in advance. Subscription fees are
+                non-refundable except where required by applicable law or as set out in
+                Section 5 below.
+              </p>
+            </SubSection>
+            <SubSection title="Plan changes">
+              <p>
+                You may upgrade or downgrade your plan at any time from your billing settings.
+                Upgrades take effect immediately. Downgrades take effect at the start of the
+                next billing period.
+              </p>
+            </SubSection>
+            <SubSection title="Failed payments">
+              <p>
+                If payment fails, we will retry the charge. If payment continues to fail,
+                your account may be downgraded to the free plan until payment is resolved.
+              </p>
+            </SubSection>
+          </Section>
 
-        <Section title="6. Intellectual Property">
-          <div className="space-y-3">
-            <Clause title="6.1 Your Content">You retain all intellectual property rights in the inputs you provide to VaultDoc (form responses, chat messages, uploaded files). By using the service, you grant Neuverk a limited, non-exclusive licence to process your inputs solely for the purpose of providing the service to you.</Clause>
-            <Clause title="6.2 Generated Documents">Documents generated by VaultDoc based on your inputs are provided to you for your use. To the extent that AI-generated output is capable of copyright protection, Neuverk assigns any such rights to you. You are responsible for ensuring that generated documents do not infringe third-party rights.</Clause>
-            <Clause title="6.3 VaultDoc Platform">The VaultDoc platform, including its software, design, trademarks, and underlying AI prompts, remains the exclusive property of {COMPANY}. Nothing in these Terms transfers any rights in the platform to you.</Clause>
-          </div>
-        </Section>
+          <Section title="5. Cancellation and Refunds">
+            <p>
+              You may cancel your subscription at any time from your billing settings. Upon
+              cancellation, your subscription will remain active until the end of the current
+              billing period. You will not be charged again after cancellation.
+            </p>
+            <p className="mt-3">
+              We do not provide refunds for partial months or unused periods except where
+              required by applicable consumer protection law. If you believe you are entitled
+              to a refund, contact us at{' '}
+              <a href="mailto:contact@neuverk.com" className="text-blue-600 hover:underline">
+                contact@neuverk.com
+              </a>{' '}
+              within 14 days of the charge.
+            </p>
+            <p className="mt-3">
+              EU/EEA consumers have a statutory right of withdrawal for digital services
+              within 14 days of purchase, unless the service has already been performed with
+              your consent and acknowledgement that you lose this right upon full performance.
+            </p>
+          </Section>
 
-        <Section title="7. Data Processing and Privacy">
-          <p className="text-gray-600 leading-relaxed">
-            Your use of VaultDoc is also governed by our{" "}
-            <Link href="/privacy" className="text-gray-900 font-medium hover:underline">Privacy Policy</Link> and, where applicable, our{" "}
-            <Link href="/dpa" className="text-gray-900 font-medium hover:underline">Data Processing Agreement</Link>. By using the service, you acknowledge that your document inputs are processed by Anthropic&apos;s AI (Claude API) to generate document content.
-          </p>
-        </Section>
-
-        <Section title="8. Limitation of Liability">
-          <div className="bg-gray-50 border border-gray-200 rounded-lg p-5 text-sm text-gray-600 leading-relaxed space-y-3">
-            <p><strong className="text-gray-900">To the maximum extent permitted by applicable law</strong>, {COMPANY} and its officers, employees, and affiliates shall not be liable for any indirect, incidental, special, consequential, or punitive damages, including but not limited to:</p>
-            <ul className="space-y-1 ml-4">
-              <li>— Loss of profits, revenue, or business opportunities</li>
-              <li>— Regulatory fines or penalties resulting from use of AI-generated documents</li>
-              <li>— Data loss or corruption</li>
-              <li>— Service interruptions or downtime</li>
+          <Section title="6. Acceptable Use">
+            <p>You agree not to use VaultDoc to:</p>
+            <ul className="mt-2 space-y-1 text-sm text-gray-600">
+              <li>— Violate any applicable law or regulation</li>
+              <li>— Generate documents intended to deceive, defraud, or mislead any person or organisation</li>
+              <li>— Submit content that infringes any third-party intellectual property rights</li>
+              <li>— Attempt to reverse engineer, scrape, or extract data from the platform</li>
+              <li>— Circumvent plan limits or access controls</li>
+              <li>— Transmit malware, viruses, or other harmful code</li>
+              <li>— Use the service in a manner that could damage, disable, or impair our infrastructure</li>
+              <li>— Resell or redistribute the service without our written permission</li>
             </ul>
-            <p>Our total aggregate liability shall not exceed the greater of (a) fees paid by you in the 3 months preceding the claim, or (b) €100.</p>
-            <p className="text-gray-400 text-xs border-t border-gray-200 pt-3">Nothing in these Terms excludes liability for death or personal injury caused by negligence, fraud, or any liability that cannot be excluded under German law (BGB §276).</p>
-          </div>
-        </Section>
+          </Section>
 
-        <Section title="9. Indemnification">
-          <p className="text-gray-600 leading-relaxed">
-            You agree to indemnify and hold harmless {COMPANY} and its officers, employees, and agents from any claims, damages, losses, or costs (including legal fees) arising from: (a) your violation of these Terms; (b) your use of AI-generated documents without appropriate professional review; (c) your infringement of any third-party rights; or (d) your violation of applicable law.
-          </p>
-        </Section>
+          <Section title="7. AI-Generated Content Disclaimer">
+            <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+              <p className="font-semibold mb-1">Important — please read carefully</p>
+              <p>
+                VaultDoc uses artificial intelligence to generate compliance documentation. All
+                AI-generated documents are provided as a starting point and drafting aid only.
+                They do not constitute legal, compliance, or professional advice. Documents
+                generated by VaultDoc should be reviewed, validated, and approved by qualified
+                compliance professionals, legal counsel, or subject matter experts before use
+                in any formal compliance programme, audit, regulatory submission, or
+                certification process.
+              </p>
+            </div>
+            <p className="mt-3">
+              We do not warrant that AI-generated documents are accurate, complete, current,
+              or fit for any particular purpose. Framework control references, regulatory
+              citations, and procedural guidance in generated documents must be independently
+              verified against the current version of the applicable standard or regulation.
+            </p>
+          </Section>
 
-        <Section title="10. Service Availability and Warranties">
-          <p className="text-gray-600 leading-relaxed">
-            VaultDoc is provided <strong className="text-gray-900">&quot;as is&quot;</strong> and <strong className="text-gray-900">&quot;as available&quot;</strong> without warranties of any kind, express or implied. We do not warrant that the service will be uninterrupted, error-free, or that generated documents will meet your specific regulatory requirements.
-          </p>
-          <p className="text-gray-600 leading-relaxed mt-4">We target 99.5% monthly uptime for paid plans. Scheduled maintenance will be communicated in advance where possible.</p>
-        </Section>
+          <Section title="8. Intellectual Property">
+            <SubSection title="Your content">
+              <p>
+                You retain full ownership of all inputs you provide and documents you generate
+                using VaultDoc. By using the service, you grant us a limited, non-exclusive
+                licence to process your content solely for the purpose of providing the service
+                to you.
+              </p>
+            </SubSection>
+            <SubSection title="Our platform">
+              <p>
+                VaultDoc, including its software, design, branding, and underlying technology,
+                is owned by Neuverk and protected by applicable intellectual property laws.
+                You may not copy, modify, or create derivative works of the platform without
+                our express written consent.
+              </p>
+            </SubSection>
+          </Section>
 
-        <Section title="11. Termination">
-          <div className="space-y-3">
-            <Clause title="11.1 By You">You may close your account at any time from the billing settings in your dashboard. Account deletion is permanent and will result in the deletion of all your documents and data as described in our Privacy Policy.</Clause>
-            <Clause title="11.2 By Us">We may suspend or terminate your account immediately if you breach these Terms, engage in fraudulent activity, or if required to do so by law. For non-material breaches, we will provide 7 days written notice and an opportunity to remedy the breach before termination.</Clause>
-            <Clause title="11.3 Effect of Termination">Upon termination, your right to access the service ceases immediately. Sections 4, 6, 8, 9, 12, and 13 survive termination.</Clause>
-          </div>
-        </Section>
+          <Section title="9. Data Protection">
+            <p>
+              Our collection and use of personal data is governed by our{' '}
+              <a href="/privacy" className="text-blue-600 hover:underline">
+                Privacy Policy
+              </a>{' '}
+              and, where applicable, our{' '}
+              <a href="/dpa" className="text-blue-600 hover:underline">
+                Data Processing Agreement
+              </a>
+              . By using VaultDoc, you acknowledge that you have read and understood our
+              Privacy Policy.
+            </p>
+          </Section>
 
-        <Section title="12. Governing Law and Dispute Resolution">
-          <p className="text-gray-600 leading-relaxed">
-            These Terms are governed by the laws of the <strong className="text-gray-900">Federal Republic of Germany</strong>, excluding its conflict of law provisions. The UN Convention on Contracts for the International Sale of Goods (CISG) does not apply.
-          </p>
-          <p className="text-gray-600 leading-relaxed mt-4">Any disputes shall be subject to the exclusive jurisdiction of the courts of Germany. EU consumers may also bring proceedings in the courts of their country of residence.</p>
-          <p className="text-gray-600 leading-relaxed mt-4">
-            The EU online dispute resolution platform is available at{" "}
-            <a href="https://ec.europa.eu/consumers/odr" target="_blank" rel="noopener noreferrer" className="text-gray-900 font-medium hover:underline">ec.europa.eu/consumers/odr</a>. ODR contact: <a href={`mailto:${CONTACT_EMAIL}`} className="text-gray-900 font-medium hover:underline">{CONTACT_EMAIL}</a>.
-          </p>
-        </Section>
+          <Section title="10. Availability and Service Levels">
+            <p>
+              We aim to provide a reliable and available service but do not guarantee
+              uninterrupted access. VaultDoc is provided &ldquo;as is&rdquo; during the current beta
+              period. We reserve the right to perform maintenance, updates, or modifications
+              to the platform at any time, with reasonable notice where possible.
+            </p>
+            <p className="mt-3">
+              We are not liable for any losses or damages arising from service downtime,
+              data loss, or interruptions to AI generation services.
+            </p>
+          </Section>
 
-        <Section title="13. General Provisions">
-          <div className="space-y-3">
-            <Clause title="Entire Agreement">These Terms, together with the Privacy Policy and DPA (where applicable), constitute the entire agreement between you and Neuverk regarding VaultDoc.</Clause>
-            <Clause title="Severability">If any provision of these Terms is found to be unenforceable, the remaining provisions will continue in full force and effect.</Clause>
-            <Clause title="Waiver">Our failure to enforce any right or provision of these Terms will not constitute a waiver of that right or provision.</Clause>
-            <Clause title="Assignment">You may not assign your rights under these Terms without our prior written consent. We may assign our rights in connection with a merger, acquisition, or sale of assets.</Clause>
-            <Clause title="Changes to Terms">We will notify you by email and in-app notice at least 14 days before material changes take effect. Continued use after changes constitutes acceptance.</Clause>
-          </div>
-        </Section>
+          <Section title="11. Limitation of Liability">
+            <p>
+              To the fullest extent permitted by applicable law, Neuverk shall not be liable
+              for any indirect, incidental, consequential, special, or punitive damages arising
+              from your use of or inability to use VaultDoc, including but not limited to loss
+              of data, loss of revenue, or loss of business opportunity.
+            </p>
+            <p className="mt-3">
+              Our total liability to you for any claim arising under these Terms shall not
+              exceed the total amount you paid to us in the 12 months preceding the claim.
+            </p>
+            <p className="mt-3 text-sm text-gray-500">
+              Some jurisdictions do not allow the exclusion of certain warranties or
+              limitations on liability. In such cases, the above limitations apply to the
+              fullest extent permitted by law.
+            </p>
+          </Section>
 
-        <Section title="14. Contact">
-          <p className="text-gray-600 leading-relaxed mb-5">For questions about these Terms, please contact:</p>
-          <address className="not-italic text-sm text-gray-600 bg-gray-50 border border-gray-200 rounded-lg p-5 leading-7">
-            {COMPANY}<br />
-            [Street Address]<br />
-            [City, Postcode], Germany<br />
-            Email: <a href={`mailto:${CONTACT_EMAIL}`} className="text-gray-900 font-medium hover:underline">{CONTACT_EMAIL}</a>
-          </address>
-        </Section>
+          <Section title="12. Termination">
+            <p>
+              We may suspend or terminate your account and access to VaultDoc at any time
+              for violation of these Terms, fraudulent activity, or non-payment, with or
+              without prior notice depending on the severity of the breach.
+            </p>
+            <p className="mt-3">
+              Upon termination, your right to use VaultDoc ceases immediately. You may
+              request an export of your documents before termination where technically
+              feasible. Account data will be deleted in accordance with our Privacy Policy.
+            </p>
+          </Section>
 
-        <div className="mt-12 pt-8 border-t border-gray-200 flex flex-wrap gap-6 text-sm text-gray-400">
-          <Link href="/privacy" className="hover:text-gray-700 transition-colors">Privacy Policy</Link>
-          <Link href="/dpa" className="hover:text-gray-700 transition-colors">Data Processing Agreement</Link>
-          <Link href="/" className="hover:text-gray-700 transition-colors">Back to VaultDoc</Link>
+          <Section title="13. Governing Law and Disputes">
+            <p>
+              These Terms are governed by the laws of the Federal Republic of Germany,
+              without regard to conflict of law principles. The UN Convention on Contracts
+              for the International Sale of Goods (CISG) does not apply.
+            </p>
+            <p className="mt-3">
+              Any disputes arising from these Terms or your use of VaultDoc shall be subject
+              to the exclusive jurisdiction of the competent courts in Munich, Germany,
+              subject to any mandatory consumer protection rights you may have under
+              applicable law in your country of residence.
+            </p>
+            <p className="mt-3">
+              If you are a consumer resident in the EU, you may also submit a complaint to
+              the EU Online Dispute Resolution platform at{' '}
+              <a
+                href="https://ec.europa.eu/consumers/odr"
+                className="text-blue-600 hover:underline"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                ec.europa.eu/consumers/odr
+              </a>
+              .
+            </p>
+          </Section>
+
+          <Section title="14. Changes to These Terms">
+            <p>
+              We may update these Terms from time to time to reflect changes in the law,
+              our business, or our services. We will notify you of material changes by
+              email or via an in-platform notice at least 14 days before the changes
+              take effect. Continued use of VaultDoc after the effective date constitutes
+              acceptance of the updated Terms.
+            </p>
+          </Section>
+
+          <Section title="15. Contact">
+            <p>
+              For any questions regarding these Terms, please contact:
+            </p>
+            <div className="mt-3 rounded-xl border border-gray-200 bg-gray-50 p-4 text-sm text-gray-700">
+              <p className="font-semibold text-gray-900">Neuverk</p>
+              <p>Munich, Germany</p>
+              <p>
+                Email:{' '}
+                <a href="mailto:contact@neuverk.com" className="text-blue-600 hover:underline">
+                  contact@neuverk.com
+                </a>
+              </p>
+            </div>
+          </Section>
+
         </div>
-      </main>
+      </div>
     </div>
-  );
+  )
 }
 
-function Section({ title, children }: { title?: string; children: React.ReactNode }) {
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="bg-white border border-gray-200 rounded-xl p-7 mb-4">
-      {title && <h2 className="text-base font-semibold text-gray-900 mb-5 pb-4 border-b border-gray-100">{title}</h2>}
-      {children}
+    <div className="mb-8">
+      <h2 className="mb-3 text-lg font-semibold text-gray-900">{title}</h2>
+      <div className="space-y-3 text-sm leading-7 text-gray-600">{children}</div>
     </div>
-  );
+  )
 }
 
-function Clause({ title, children }: { title: string; children: React.ReactNode }) {
+function SubSection({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-      <p className="text-sm font-semibold text-gray-900 mb-1">{title}</p>
-      <p className="text-sm text-gray-600 leading-relaxed">{children}</p>
+    <div className="mt-3">
+      <h3 className="mb-1 text-sm font-semibold text-gray-800">{title}</h3>
+      <div className="text-sm leading-7 text-gray-600">{children}</div>
     </div>
-  );
+  )
 }
