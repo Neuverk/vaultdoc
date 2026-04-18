@@ -12,6 +12,7 @@ export function AdminPlanChanger({
   currentPlan: string
 }) {
   const [selectedPlan, setSelectedPlan] = useState(currentPlan)
+  const [savedPlan, setSavedPlan] = useState(currentPlan)
   const [status, setStatus] = useState<Status>('idle')
   const [errorMsg, setErrorMsg] = useState('')
 
@@ -34,6 +35,7 @@ export function AdminPlanChanger({
         return
       }
 
+      setSavedPlan(selectedPlan)
       setStatus('saved')
       setTimeout(() => setStatus('idle'), 2500)
     } catch {
@@ -62,7 +64,7 @@ export function AdminPlanChanger({
         <button
           type="button"
           onClick={handleSave}
-          disabled={status === 'saving' || selectedPlan === currentPlan && status !== 'error'}
+          disabled={status === 'saving' || selectedPlan === savedPlan}
           className="inline-flex items-center justify-center rounded-xl bg-gray-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-gray-800 disabled:opacity-50"
         >
           {status === 'saving' ? 'Saving…' : 'Save'}

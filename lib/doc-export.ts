@@ -24,7 +24,10 @@ export function buildHtmlContent(content: string): string {
 
   for (const line of lines) {
     if (!line.trim()) {
-      if (inTable) { html += '</table>'; inTable = false }
+      if (inTable) {
+        html += '</table>'
+        inTable = false
+      }
       html += '<br>'
     } else if (line.startsWith('# ')) {
       html += `<h1>${line.replace('# ', '')}</h1>`
@@ -40,17 +43,26 @@ export function buildHtmlContent(content: string): string {
         html += '<table style="width:100%;border-collapse:collapse;margin:16px 0">'
         inTable = true
       }
-      const cells = line.split('|').filter((_, i, a) => i > 0 && i < a.length - 1)
+      const cells = line
+        .split('|')
+        .filter((_, i, a) => i > 0 && i < a.length - 1)
       const isHeader = cells.some((c) => c.includes('**'))
-      html += `<tr>${cells.map((cell) => {
-        const tag = isHeader ? 'th' : 'td'
-        const style = isHeader
-          ? 'background:#0f172a;color:white;font-weight:600;padding:8px 12px;text-align:left;font-size:12px'
-          : 'border:1px solid #e5e7eb;padding:8px 12px;font-size:12px'
-        return `<${tag} style="${style}">${cell.replace(/\*\*/g, '').trim()}</${tag}>`
-      }).join('')}</tr>`
+      html += `<tr>${cells
+        .map((cell) => {
+          const tag = isHeader ? 'th' : 'td'
+          const style = isHeader
+            ? 'background:#0f172a;color:white;font-weight:600;padding:8px 12px;text-align:left;font-size:12px'
+            : 'border:1px solid #e5e7eb;padding:8px 12px;font-size:12px'
+          return `<${tag} style="${style}">${cell
+            .replace(/\*\*/g, '')
+            .trim()}</${tag}>`
+        })
+        .join('')}</tr>`
     } else {
-      if (inTable) { html += '</table>'; inTable = false }
+      if (inTable) {
+        html += '</table>'
+        inTable = false
+      }
       html += `<p>${line.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')}</p>`
     }
   }
@@ -59,14 +71,27 @@ export function buildHtmlContent(content: string): string {
   return html
 }
 
-export async function downloadWord(content: string, meta: DocExportMeta): Promise<void> {
+export async function downloadWord(
+  content: string,
+  meta: DocExportMeta,
+): Promise<void> {
   const lines = content.split('\n')
   const children: Paragraph[] = []
 
   children.push(
-    new Paragraph({ text: meta.title, heading: HeadingLevel.TITLE, alignment: AlignmentType.CENTER }),
     new Paragraph({
-      children: [new TextRun({ text: `${meta.type} · ${meta.department} · ${meta.frameworks.join(', ')}`, size: 20, color: '666666' })],
+      text: meta.title,
+      heading: HeadingLevel.TITLE,
+      alignment: AlignmentType.CENTER,
+    }),
+    new Paragraph({
+      children: [
+        new TextRun({
+          text: `${meta.type} · ${meta.department} · ${meta.frameworks.join(', ')}`,
+          size: 20,
+          color: '666666',
+        }),
+      ],
       alignment: AlignmentType.CENTER,
       spacing: { after: 400 },
     }),
@@ -76,19 +101,62 @@ export async function downloadWord(content: string, meta: DocExportMeta): Promis
     if (!line.trim()) {
       children.push(new Paragraph({ text: '' }))
     } else if (line.startsWith('# ')) {
-      children.push(new Paragraph({ text: line.replace('# ', ''), heading: HeadingLevel.HEADING_1 }))
+      children.push(
+        new Paragraph({
+          text: line.replace('# ', ''),
+          heading: HeadingLevel.HEADING_1,
+        }),
+      )
     } else if (line.startsWith('## ')) {
-      children.push(new Paragraph({ text: line.replace('## ', ''), heading: HeadingLevel.HEADING_2 }))
+      children.push(
+        new Paragraph({
+          text: line.replace('## ', ''),
+          heading: HeadingLevel.HEADING_2,
+        }),
+      )
     } else if (line.startsWith('### ')) {
-      children.push(new Paragraph({ text: line.replace('### ', ''), heading: HeadingLevel.HEADING_3 }))
+      children.push(
+        new Paragraph({
+          text: line.replace('### ', ''),
+          heading: HeadingLevel.HEADING_3,
+        }),
+      )
     } else if (line.startsWith('- ') || line.startsWith('* ')) {
-      children.push(new Paragraph({ text: line.replace(/^[-*] /, ''), bullet: { level: 0 } }))
+      children.push(
+        new Paragraph({
+          text: line.replace(/^[-*] /, ''),
+          bullet: { level: 0 },
+        }),
+      )
     } else if (line.startsWith('|') && !line.includes('---')) {
-      const cells = line.split('|').filter((_, i, a) => i > 0 && i < a.length - 1)
-      children.push(new Paragraph({ children: cells.map((cell) => new TextRun({ text: cell.replace(/\*\*/g, '').trim() + '  ', bold: cell.includes('**') })) }))
+      const cells = line
+        .split('|')
+        .filter((_, i, a) => i > 0 && i < a.length - 1)
+      children.push(
+        new Paragraph({
+          children: cells.map(
+            (cell) =>
+              new TextRun({
+                text: cell.replace(/\*\*/g, '').trim() + '  ',
+                bold: cell.includes('**'),
+              }),
+          ),
+        }),
+      )
     } else {
       const parts = line.split(/(\*\*.*?\*\*)/)
-      children.push(new Paragraph({ children: parts.map((part) => part.startsWith('**') && part.endsWith('**') ? new TextRun({ text: part.replace(/\*\*/g, ''), bold: true }) : new TextRun({ text: part })) }))
+      children.push(
+        new Paragraph({
+          children: parts.map((part) =>
+            part.startsWith('**') && part.endsWith('**')
+              ? new TextRun({
+                  text: part.replace(/\*\*/g, ''),
+                  bold: true,
+                })
+              : new TextRun({ text: part }),
+          ),
+        }),
+      )
     }
   })
 
@@ -97,10 +165,45 @@ export async function downloadWord(content: string, meta: DocExportMeta): Promis
   saveAs(blob, `${meta.title.replace(/\s+/g, '_')}.docx`)
 }
 
-export function downloadPDF(content: string, meta: DocExportMeta): void {
+export function downloadPDF(
+  content: string,
+  meta: DocExportMeta,
+  watermark = false,
+): void {
+  console.log('downloadPDF watermark value:', watermark)
+
   const printWindow = window.open('', '_blank')
   if (!printWindow) return
+
   const htmlContent = buildHtmlContent(content)
+
+  const watermarkHtml = watermark
+    ? `<div style="
+        position:fixed;
+        top:0;
+        left:0;
+        width:100%;
+        height:100%;
+        display:flex;
+        align-items:center;
+        justify-content:center;
+        pointer-events:none;
+        z-index:9999;
+      ">
+        <span style="
+          display:block;
+          transform:rotate(-45deg);
+          font-size:88px;
+          font-weight:900;
+          letter-spacing:0.08em;
+          color:#c8c8c8;
+          white-space:nowrap;
+          font-family:Arial,sans-serif;
+          -webkit-print-color-adjust:exact;
+          print-color-adjust:exact;
+        ">FREE PLAN — VAULTDOC</span>
+      </div>`
+    : ''
 
   const html = `<!DOCTYPE html><html><head><title>${meta.title}</title>
   <style>
@@ -121,6 +224,7 @@ export function downloadPDF(content: string, meta: DocExportMeta): void {
     .footer{margin-top:48px;padding-top:16px;border-top:1px solid #e5e7eb;font-size:11px;color:#9ca3af;text-align:center}
     @media print{body{margin:0}.cover{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
   </style></head><body>
+  ${watermarkHtml}
   <div class="cover">
     <h1>${meta.title}</h1>
     <div class="meta">${meta.type} · ${meta.department}</div>

@@ -5,9 +5,15 @@ import { eq } from 'drizzle-orm'
 import Link from 'next/link'
 import { PLANS, PlanType } from '@/lib/plans'
 
+export const dynamic = 'force-dynamic'
+
 export default async function DashboardPage() {
   const user = await currentUser()
   const { userId } = await auth()
+
+  if (!userId) {
+    return null
+  }
 
   let docCount = 0
   let quotaUsed = 0
@@ -15,22 +21,26 @@ export default async function DashboardPage() {
 
   try {
     const dbUser = await db.query.users.findFirst({
-      where: eq(users.clerkId, userId!),
+      where: eq(users.clerkId, userId),
     })
-    if (dbUser) {
-      const docs = await db.query.documents.findMany({
-        where: eq(documents.tenantId, dbUser.tenantId!),
-      })
-      docCount = docs.length
 
+    if (dbUser?.tenantId) {
       const tenant = await db.query.tenants.findFirst({
-        where: eq(tenants.id, dbUser.tenantId!),
+        where: eq(tenants.id, dbUser.tenantId),
       })
-      plan = (tenant?.plan ?? 'free') as PlanType
-      quotaUsed = tenant?.documentQuotaUsed ?? 0
+
+      if (tenant) {
+        plan = tenant.plan as PlanType
+        quotaUsed = tenant.documentQuotaUsed ?? 0
+
+        const docs = await db.query.documents.findMany({
+          where: eq(documents.tenantId, dbUser.tenantId),
+        })
+        docCount = docs.length
+      }
     }
-  } catch (e) {
-    console.error('Dashboard error:', e)
+  } catch (error) {
+    console.error('Dashboard error:', error)
   }
 
   const isAtLimit = plan === 'free' && quotaUsed >= PLANS.free.maxDocuments
@@ -38,7 +48,6 @@ export default async function DashboardPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="mx-auto max-w-7xl space-y-8 px-6 py-8">
-        {/* Welcome */}
         <section className="rounded-3xl border border-gray-200 bg-white p-8 shadow-sm">
           <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
             <div>
@@ -52,9 +61,9 @@ export default async function DashboardPage() {
               </h1>
 
               <p className="mt-2 max-w-2xl text-sm leading-6 text-gray-600">
-                Create, organize, and manage professional documents from one central workspace.
-                VaultDoc is built for teams across operations, compliance, HR, finance, legal,
-                security, and more.
+                Create, organize, and manage professional documents from one central
+                workspace. VaultDoc is built for teams across operations,
+                compliance, HR, finance, legal, security, and more.
               </p>
             </div>
 
@@ -89,7 +98,6 @@ export default async function DashboardPage() {
           </div>
         </section>
 
-        {/* Upgrade banner */}
         {isAtLimit && (
           <section className="rounded-2xl border border-amber-200 bg-amber-50 p-5 shadow-sm">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
@@ -98,7 +106,9 @@ export default async function DashboardPage() {
                   You&apos;ve reached the Free plan limit
                 </p>
                 <p className="mt-1 text-sm text-amber-800">
-                  {quotaUsed} of {PLANS.free.maxDocuments} lifetime document saves used. Deleting documents does not restore your quota. Upgrade to keep creating.
+                  {quotaUsed} of {PLANS.free.maxDocuments} lifetime document saves
+                  used. Deleting documents does not restore your quota. Upgrade to
+                  keep creating.
                 </p>
               </div>
 
@@ -112,7 +122,6 @@ export default async function DashboardPage() {
           </section>
         )}
 
-        {/* Stats */}
         <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           <Link
             href="/dashboard/library"
@@ -220,7 +229,6 @@ export default async function DashboardPage() {
           </div>
         </section>
 
-        {/* Quick actions */}
         <section className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
           <div className="mb-6 flex items-center justify-between">
             <div>
@@ -327,13 +335,13 @@ export default async function DashboardPage() {
                 Audit readiness
               </div>
               <div className="mt-1 text-sm leading-6 text-gray-600">
-                Review framework readiness and document maturity across your workspace.
+                Review framework readiness and document maturity across your
+                workspace.
               </div>
             </Link>
           </div>
         </section>
 
-        {/* Recent documents */}
         {docCount > 0 && (
           <section className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">

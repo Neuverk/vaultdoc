@@ -5,6 +5,7 @@ import { tenants } from '@/lib/db/schema'
 import { eq } from 'drizzle-orm'
 import { isPlatformAdmin } from '@/lib/admin'
 import { createAuditLog } from '@/lib/audit'
+import { revalidatePath } from 'next/cache'
 
 const ALLOWED_PLANS = ['free', 'starter', 'enterprise'] as const
 type AllowedPlan = (typeof ALLOWED_PLANS)[number]
@@ -99,6 +100,8 @@ export async function POST(req: NextRequest) {
         changedBy: email,
       },
     })
+
+    revalidatePath('/dashboard/admin')
 
     return new Response(
       JSON.stringify({ success: true }),
