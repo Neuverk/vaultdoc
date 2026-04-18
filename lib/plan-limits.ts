@@ -1,6 +1,6 @@
 import { db } from '@/lib/db';
-import { documents, tenants } from '@/lib/db/schema';
-import { eq, count } from 'drizzle-orm';
+import { tenants } from '@/lib/db/schema';
+import { eq } from 'drizzle-orm';
 import { PLANS, PlanType } from '@/lib/plans';
 
 export async function getTenantPlan(tenantId: string) {
@@ -14,26 +14,22 @@ export async function getTenantPlan(tenantId: string) {
 export async function canCreateDocument(tenantId: string): Promise<{
   allowed: boolean;
   reason?: string;
-  currentCount: number;
+  quotaUsed: number;
   limit: number;
   plan: PlanType;
 }> {
   const tenant = await getTenantPlan(tenantId);
   const plan = (tenant?.plan ?? 'free') as PlanType;
   const limits = PLANS[plan];
-
-  const [{ value: currentCount }] = await db
-    .select({ value: count() })
-    .from(documents)
-    .where(eq(documents.tenantId, tenantId));
+  const quotaUsed = tenant?.documentQuotaUsed ?? 0;
 
   const limit = limits.maxDocuments === Infinity ? 999999 : limits.maxDocuments;
-  const allowed = limits.maxDocuments === Infinity || currentCount < limits.maxDocuments;
+  const allowed = limits.maxDocuments === Infinity || quotaUsed < limits.maxDocuments;
 
   return {
     allowed,
     reason: allowed ? undefined : `Free plan limit reached (${limit} documents max)`,
-    currentCount,
+    quotaUsed,
     limit,
     plan,
   };

@@ -2,6 +2,7 @@ import { auth } from '@clerk/nextjs/server'
 import { db } from '@/lib/db'
 import { documents, users } from '@/lib/db/schema'
 import { eq } from 'drizzle-orm'
+import { LibraryTable } from './library-table'
 
 export default async function LibraryPage() {
   const { userId } = await auth()
@@ -67,123 +68,7 @@ export default async function LibraryPage() {
           </div>
         )}
 
-        {docs.length > 0 && (
-          <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
-
-            <div className="flex flex-col gap-3 border-b border-gray-200 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
-              <p className="text-sm font-medium text-gray-900">
-                All documents
-                <span className="ml-2 rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-500">
-                  {docs.length}
-                </span>
-              </p>
-              <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                <input
-                  type="text"
-                  placeholder="Search documents..."
-                  className="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-900 outline-none transition placeholder:text-gray-400 focus:border-gray-400 focus:bg-white sm:w-56"
-                />
-                <select className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700 outline-none transition focus:border-gray-400">
-                  <option>All types</option>
-                  <option>SOP</option>
-                  <option>Policy</option>
-                  <option>Runbook</option>
-                </select>
-                <select className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700 outline-none transition focus:border-gray-400">
-                  <option>All status</option>
-                  <option>Draft</option>
-                  <option>Approved</option>
-                  <option>Effective</option>
-                </select>
-              </div>
-            </div>
-
-            <div className="overflow-x-auto">
-              <table className="min-w-full">
-                <thead>
-                  <tr className="border-b border-gray-100">
-                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-400">Document</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-400">Type</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-400">Frameworks</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-400">Status</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-400">Classification</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-400">Created</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-400">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-50">
-                  {docs.map((doc: any) => (
-                    <tr key={doc.id} className="transition hover:bg-gray-50">
-                      <td className="px-6 py-4">
-                        <div className="text-sm font-medium text-gray-900">{doc.title}</div>
-                        {doc.department && (
-                          <div className="mt-0.5 text-xs text-gray-400">{doc.department}</div>
-                        )}
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className="inline-flex rounded-md border border-gray-200 bg-gray-50 px-2.5 py-1 text-xs font-medium text-gray-600">
-                          {doc.type}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="flex flex-wrap gap-1">
-                          {doc.frameworks?.slice(0, 2).map((fw: string) => (
-                            <span key={fw} className="inline-flex rounded-md border border-gray-200 bg-gray-50 px-2.5 py-1 text-xs font-medium text-gray-600">
-                              {fw}
-                            </span>
-                          ))}
-                          {doc.frameworks?.length > 2 && (
-                            <span className="inline-flex items-center text-xs text-gray-400">
-                              +{doc.frameworks.length - 2} more
-                            </span>
-                          )}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className="inline-flex rounded-md border border-gray-200 bg-gray-50 px-2.5 py-1 text-xs font-medium capitalize text-gray-600">
-                          {doc.status}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className="inline-flex rounded-md border border-gray-200 bg-gray-50 px-2.5 py-1 text-xs font-medium text-gray-600">
-                          {doc.confidentiality}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 text-xs text-gray-400">
-                        {new Date(doc.createdAt).toLocaleDateString('en-GB', {
-                          day: '2-digit',
-                          month: 'short',
-                          year: 'numeric',
-                        })}
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-3">
-                          <a
-                            href={'/dashboard/documents/' + doc.id}
-                            className="text-xs font-medium text-gray-900 transition hover:text-gray-600"
-                          >
-                            View
-                          </a>
-                          <span className="text-gray-200">·</span>
-                          <button className="text-xs font-medium text-gray-400 transition hover:text-gray-900">
-                            Edit
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            <div className="border-t border-gray-100 px-6 py-3">
-              <p className="text-xs text-gray-400">
-                Showing {docs.length} of {docs.length} documents
-              </p>
-            </div>
-
-          </div>
-        )}
+        {docs.length > 0 && <LibraryTable docs={docs} />}
       </div>
     </div>
   )

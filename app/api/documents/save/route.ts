@@ -2,7 +2,7 @@ import { auth, currentUser } from '@clerk/nextjs/server'
 import { NextRequest } from 'next/server'
 import { db } from '@/lib/db'
 import { documents, users, tenants } from '@/lib/db/schema'
-import { eq } from 'drizzle-orm'
+import { eq, sql } from 'drizzle-orm'
 import { canCreateDocument } from '@/lib/plan-limits'
 import { createAuditLog } from '@/lib/audit'
 
@@ -52,7 +52,7 @@ export async function POST(req: NextRequest) {
       tenant = newTenant
     }
 
-    const { allowed, reason, currentCount, limit } = await canCreateDocument(
+    const { allowed, reason, quotaUsed, limit } = await canCreateDocument(
       tenant.id,
     )
 
@@ -61,7 +61,7 @@ export async function POST(req: NextRequest) {
         JSON.stringify({
           error: reason,
           code: 'PLAN_LIMIT_REACHED',
-          currentCount,
+          quotaUsed,
           limit,
         }),
         {
@@ -116,6 +116,11 @@ export async function POST(req: NextRequest) {
         version: '1.0',
       })
       .returning()
+
+    await db
+      .update(tenants)
+      .set({ documentQuotaUsed: sql`${tenants.documentQuotaUsed} + 1` })
+      .where(eq(tenants.id, tenant.id))
 
     await createAuditLog({
       tenantId: tenant.id,

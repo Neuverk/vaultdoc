@@ -2,13 +2,11 @@ import Anthropic from '@anthropic-ai/sdk'
 import { auth } from '@clerk/nextjs/server'
 import { NextRequest } from 'next/server'
 import { db } from '@/lib/db'
-
-export const maxDuration = 60
 import { documents, users } from '@/lib/db/schema'
 import { eq } from 'drizzle-orm'
 import { checkRateLimit } from '@/lib/rate-limit'
-import { createAuditLog } from '@/lib/audit'
-import { canCreateDocument } from '@/lib/plan-limits'
+
+export const maxDuration = 60
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! })
 
@@ -109,7 +107,6 @@ export async function POST(req: NextRequest) {
     )
   }
 
-  // Strict tenant ownership — no default-tenant fallback for writes
   if (sourceDoc.tenantId !== dbUser.tenantId) {
     return new Response(
       JSON.stringify({ error: 'Forbidden.' }),
@@ -121,19 +118,6 @@ export async function POST(req: NextRequest) {
     return new Response(
       JSON.stringify({ error: 'Source document has no content to revise.' }),
       { status: 422, headers: { 'Content-Type': 'application/json' } },
-    )
-  }
-
-  const { allowed, reason, currentCount, limit } = await canCreateDocument(dbUser.tenantId)
-  if (!allowed) {
-    return new Response(
-      JSON.stringify({
-        error: reason,
-        code: 'PLAN_LIMIT_REACHED',
-        currentCount,
-        limit,
-      }),
-      { status: 403, headers: { 'Content-Type': 'application/json' } },
     )
   }
 
@@ -181,55 +165,22 @@ Output the complete revised document now.`
 
   const resolvedTitle = newTitle || `${sourceDoc.title} (Revised)`
 
-  let newDoc: typeof sourceDoc
-  try {
-    const [inserted] = await db
-      .insert(documents)
-      .values({
-        tenantId: sourceDoc.tenantId,
-        createdBy: dbUser.id,
-        title: resolvedTitle,
-        type: sourceDoc.type,
-        department: sourceDoc.department,
-        frameworks: sourceDoc.frameworks,
-        confidentiality: sourceDoc.confidentiality,
-        scope: sourceDoc.scope,
-        purpose: sourceDoc.purpose,
-        owner: sourceDoc.owner,
-        reviewer: sourceDoc.reviewer,
-        language,
-        content: revisedContent,
-        status: 'draft',
-        version: '1.0',
-      })
-      .returning()
-
-    newDoc = inserted
-  } catch (error) {
-    console.error('Revise route: failed to save new document:', String(error))
-    return new Response(
-      JSON.stringify({ error: 'Failed to save revised document.' }),
-      { status: 500, headers: { 'Content-Type': 'application/json' } },
-    )
-  }
-
-  await createAuditLog({
-    tenantId: sourceDoc.tenantId,
-    userId: dbUser.id,
-    action: 'document_revised',
-    resourceType: 'document',
-    resourceId: newDoc.id,
-    metadata: {
-      sourceDocumentId: sourceDoc.id,
-      sourceTitle: sourceDoc.title,
-      newTitle: resolvedTitle,
-      requestedChanges,
-      language,
-    },
-  })
-
   return new Response(
-    JSON.stringify({ success: true, id: newDoc.id }),
+    JSON.stringify({
+      success: true,
+      content: revisedContent,
+      title: resolvedTitle,
+      language,
+      sourceDocumentId: sourceDoc.id,
+      type: sourceDoc.type,
+      department: sourceDoc.department,
+      frameworks: sourceDoc.frameworks ?? [],
+      confidentiality: sourceDoc.confidentiality,
+      scope: sourceDoc.scope,
+      purpose: sourceDoc.purpose,
+      owner: sourceDoc.owner,
+      reviewer: sourceDoc.reviewer,
+    }),
     {
       headers: {
         'Content-Type': 'application/json',

@@ -10,6 +10,7 @@ export default async function DashboardPage() {
   const { userId } = await auth()
 
   let docCount = 0
+  let quotaUsed = 0
   let plan: PlanType = 'free'
 
   try {
@@ -26,12 +27,13 @@ export default async function DashboardPage() {
         where: eq(tenants.id, dbUser.tenantId!),
       })
       plan = (tenant?.plan ?? 'free') as PlanType
+      quotaUsed = tenant?.documentQuotaUsed ?? 0
     }
   } catch (e) {
     console.error('Dashboard error:', e)
   }
 
-  const isAtLimit = plan === 'free' && docCount >= 3
+  const isAtLimit = plan === 'free' && quotaUsed >= PLANS.free.maxDocuments
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -96,8 +98,7 @@ export default async function DashboardPage() {
                   You&apos;ve reached the Free plan limit
                 </p>
                 <p className="mt-1 text-sm text-amber-800">
-                  {docCount}/3 documents used. Upgrade your workspace to create
-                  more documents without Free plan restrictions.
+                  {quotaUsed} of {PLANS.free.maxDocuments} lifetime document saves used. Deleting documents does not restore your quota. Upgrade to keep creating.
                 </p>
               </div>
 
@@ -143,7 +144,9 @@ export default async function DashboardPage() {
               {docCount}
             </div>
             <div className="mt-2 text-sm text-gray-600">
-              Documents {plan === 'free' ? `(${docCount}/3 free)` : ''}
+              {plan === 'free'
+                ? `${quotaUsed} of ${PLANS.free.maxDocuments} lifetime saves used`
+                : 'Documents'}
             </div>
           </Link>
 
@@ -266,7 +269,7 @@ export default async function DashboardPage() {
               </div>
               <div className="mt-1 text-sm leading-6 text-gray-600">
                 {isAtLimit
-                  ? 'Free limit reached. Upgrade your plan to continue creating documents.'
+                  ? `You've used all ${PLANS.free.maxDocuments} lifetime document saves on the Free plan. Upgrade to keep creating.`
                   : 'Create a new SOP, policy, runbook, HR guideline, process note, or other business document.'}
               </div>
             </Link>

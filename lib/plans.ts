@@ -5,7 +5,7 @@ export const PLANS = {
     price: 0,
     maxDocuments: 3,
     watermark: true,
-    features: ['3 documents max', 'Watermarked PDF export'],
+    features: ['3 lifetime document saves', 'Watermarked PDF export'],
   },
   starter: {
     name: 'Starter',

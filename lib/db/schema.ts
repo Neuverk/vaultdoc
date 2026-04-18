@@ -16,6 +16,9 @@ export const tenants = pgTable('tenants', {
   stripePriceId: text('stripe_price_id'),
   stripeCurrentPeriodEnd: timestamp('stripe_current_period_end'),
   stripeSubscriptionStatus: text('stripe_subscription_status'),
+
+  // Lifetime quota counter — never decremented on delete
+  documentQuotaUsed: integer('document_quota_used').notNull().default(0),
 })
 
 // ─── USERS ────────────────────────────────────────────────
@@ -52,6 +55,7 @@ export const documents = pgTable('documents', {
   owner: text('owner'),
   reviewer: text('reviewer'),
   reviewDate: timestamp('review_date'),
+  sourceDocumentId: uuid('source_document_id'), // set when this is a revision of another document
   publishedToKb: boolean('published_to_kb').default(false),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),

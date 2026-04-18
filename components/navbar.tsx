@@ -1,8 +1,11 @@
 import { UserButton } from '@clerk/nextjs'
 import { currentUser } from '@clerk/nextjs/server'
+import { isPlatformAdmin } from '@/lib/admin'
 
 export default async function Navbar() {
   const user = await currentUser()
+  const email = user?.emailAddresses[0]?.emailAddress
+  const isAdmin = isPlatformAdmin(email)
   return (
     <header className="sticky top-0 z-50 border-b border-gray-200 bg-white/95 backdrop-blur-sm">
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-6 lg:px-8">
@@ -23,6 +26,11 @@ export default async function Navbar() {
             <a href="/dashboard/billing" className="rounded-lg px-3 py-2 text-sm font-medium text-gray-600 transition hover:bg-gray-100 hover:text-gray-900">
               Billing
             </a>
+            {isAdmin && (
+              <a href="/dashboard/admin" className="rounded-lg px-3 py-2 text-sm font-medium text-gray-600 transition hover:bg-gray-100 hover:text-gray-900">
+                Admin
+              </a>
+            )}
           </nav>
           <a href="/dashboard/documents/new" className="rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-900 shadow-sm transition hover:bg-gray-50">
             + New document

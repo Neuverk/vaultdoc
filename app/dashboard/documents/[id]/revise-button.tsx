@@ -3,6 +3,8 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 
+const STORAGE_KEY = 'vaultdoc:revise_preview'
+
 const LANGUAGES = [
   'English',
   'German',
@@ -50,7 +52,10 @@ export function ReviseButton({ documentId, originalLanguage }: Props) {
           documentId={documentId}
           originalLanguage={originalLanguage}
           onClose={() => setOpen(false)}
-          onSuccess={(newId) => router.push(`/dashboard/documents/${newId}`)}
+          onPreview={(data) => {
+            sessionStorage.setItem(STORAGE_KEY, JSON.stringify(data))
+            router.push('/dashboard/documents/revise-preview')
+          }}
         />
       )}
     </>
@@ -61,12 +66,12 @@ function ReviseModal({
   documentId,
   originalLanguage,
   onClose,
-  onSuccess,
+  onPreview,
 }: {
   documentId: string
   originalLanguage: string
   onClose: () => void
-  onSuccess: (newId: string) => void
+  onPreview: (data: unknown) => void
 }) {
   const [requestedChanges, setRequestedChanges] = useState('')
   const [newTitle, setNewTitle] = useState('')
@@ -101,7 +106,7 @@ function ReviseModal({
         return
       }
 
-      onSuccess(data.id)
+      onPreview(data)
     } catch {
       setError('Something went wrong. Please try again.')
       setLoading(false)
@@ -115,13 +120,11 @@ function ReviseModal({
       aria-modal="true"
       aria-labelledby="revise-dialog-title"
     >
-      {/* Backdrop */}
       <div
         className="absolute inset-0 bg-black/30 backdrop-blur-sm"
         onClick={onClose}
       />
 
-      {/* Panel */}
       <div className="relative z-10 w-full max-w-lg rounded-2xl border border-gray-200 bg-white shadow-xl">
         <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4">
           <div>
@@ -135,7 +138,7 @@ function ReviseModal({
               </span>
             </h2>
             <p className="mt-0.5 text-xs text-gray-500">
-              The original document will not be changed. A new draft will be saved.
+              The original document will not be changed. You will review before saving.
             </p>
           </div>
           <button
@@ -163,7 +166,7 @@ function ReviseModal({
               value={requestedChanges}
               onChange={(e) => setRequestedChanges(e.target.value)}
               rows={4}
-              placeholder="e.g. Update Section 5 to reflect the new BYOD policy. Add a clause about remote access via VPN. Strengthen the incident escalation steps."
+              placeholder="e.g. Update Section 5 to reflect the new BYOD policy. Add a clause about remote access via VPN."
               disabled={loading}
               className="mt-1.5 w-full resize-none rounded-xl border border-gray-200 px-3.5 py-2.5 text-sm text-gray-900 placeholder-gray-400 shadow-sm outline-none transition focus:border-gray-400 focus:ring-2 focus:ring-gray-200 disabled:opacity-50"
             />
@@ -175,7 +178,7 @@ function ReviseModal({
               className="block text-xs font-medium text-gray-700"
             >
               New title{' '}
-              <span className="font-normal text-gray-400">(optional — defaults to original title + &ldquo;Revised&rdquo;)</span>
+              <span className="font-normal text-gray-400">(optional — defaults to original + &ldquo;Revised&rdquo;)</span>
             </label>
             <input
               id="newTitle"
@@ -204,8 +207,7 @@ function ReviseModal({
             >
               {LANGUAGES.map((lang) => (
                 <option key={lang} value={lang}>
-                  {lang}
-                  {lang === originalLanguage ? ' (current)' : ''}
+                  {lang}{lang === originalLanguage ? ' (current)' : ''}
                 </option>
               ))}
             </select>
@@ -232,27 +234,12 @@ function ReviseModal({
               className="inline-flex items-center justify-center gap-2 rounded-xl bg-gray-900 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-gray-800 disabled:opacity-50"
             >
               {loading && (
-                <svg
-                  className="h-3.5 w-3.5 animate-spin"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                >
-                  <circle
-                    className="opacity-25"
-                    cx="12"
-                    cy="12"
-                    r="10"
-                    stroke="currentColor"
-                    strokeWidth="4"
-                  />
-                  <path
-                    className="opacity-75"
-                    fill="currentColor"
-                    d="M4 12a8 8 0 018-8v8H4z"
-                  />
+                <svg className="h-3.5 w-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
                 </svg>
               )}
-              {loading ? 'Revising…' : 'Revise document'}
+              {loading ? 'Generating…' : 'Preview revision'}
             </button>
           </div>
         </form>
