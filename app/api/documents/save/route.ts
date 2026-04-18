@@ -2,9 +2,9 @@ import { auth, currentUser } from '@clerk/nextjs/server'
 import { NextRequest } from 'next/server'
 import { db } from '@/lib/db'
 import { documents, users, tenants } from '@/lib/db/schema'
-import { eq, sql } from 'drizzle-orm'
-import { canCreateDocument } from '@/lib/plan-limits'
+import { eq, sql, and, or, ne, lt } from 'drizzle-orm'
 import { createAuditLog } from '@/lib/audit'
+import { PLANS } from '@/lib/plans'
 
 export async function POST(req: NextRequest) {
   const { userId } = await auth()
@@ -52,25 +52,6 @@ export async function POST(req: NextRequest) {
       tenant = newTenant
     }
 
-    const { allowed, reason, quotaUsed, limit } = await canCreateDocument(
-      tenant.id,
-    )
-
-    if (!allowed) {
-      return new Response(
-        JSON.stringify({
-          error: reason,
-          code: 'PLAN_LIMIT_REACHED',
-          quotaUsed,
-          limit,
-        }),
-        {
-          status: 403,
-          headers: { 'Content-Type': 'application/json' },
-        },
-      )
-    }
-
     let user = await db.query.users.findFirst({
       where: eq(users.clerkId, userId),
     })
@@ -98,33 +79,78 @@ export async function POST(req: NextRequest) {
       user = { ...user, tenantId: tenant.id }
     }
 
-    const [doc] = await db
-      .insert(documents)
-      .values({
-        tenantId: tenant.id,
-        createdBy: user.id,
-        title,
-        type,
-        department,
-        frameworks,
-        content,
-        scope,
-        purpose,
-        language,
-        confidentiality,
-        status: 'draft',
-        version: '1.0',
-      })
-      .returning()
+    const tenantId = tenant.id
+    const dbUserId = user.id
+    const FREE_LIMIT = PLANS.free.maxDocuments
 
-    await db
-      .update(tenants)
-      .set({ documentQuotaUsed: sql`${tenants.documentQuotaUsed} + 1` })
-      .where(eq(tenants.id, tenant.id))
+    // Atomically claim a quota slot and insert the document in one transaction.
+    //
+    // The UPDATE only touches the row when the plan allows it:
+    //   - plan != 'free'  → always allowed (starter / enterprise have no limit)
+    //   - plan == 'free'  → only allowed while document_quota_used < FREE_LIMIT
+    //
+    // If 0 rows are returned from the UPDATE, another concurrent request already
+    // consumed the last slot (or the limit was already reached). We return null
+    // to signal quota exceeded without inserting any document. The transaction
+    // is rolled back automatically on error, so a failed document insert also
+    // rolls back the quota increment.
+    const doc = await db.transaction(async (tx) => {
+      const [quota] = await tx
+        .update(tenants)
+        .set({ documentQuotaUsed: sql`${tenants.documentQuotaUsed} + 1` })
+        .where(
+          and(
+            eq(tenants.id, tenantId),
+            or(
+              ne(tenants.plan, 'free'),
+              lt(tenants.documentQuotaUsed, FREE_LIMIT),
+            ),
+          ),
+        )
+        .returning({ documentQuotaUsed: tenants.documentQuotaUsed })
+
+      if (!quota) return null
+
+      const [inserted] = await tx
+        .insert(documents)
+        .values({
+          tenantId,
+          createdBy: dbUserId,
+          title,
+          type,
+          department,
+          frameworks,
+          content,
+          scope,
+          purpose,
+          language,
+          confidentiality,
+          status: 'draft',
+          version: '1.0',
+        })
+        .returning()
+
+      return inserted
+    })
+
+    if (!doc) {
+      return new Response(
+        JSON.stringify({
+          error: `Free plan limit reached (${FREE_LIMIT} documents max)`,
+          code: 'PLAN_LIMIT_REACHED',
+          quotaUsed: FREE_LIMIT,
+          limit: FREE_LIMIT,
+        }),
+        {
+          status: 403,
+          headers: { 'Content-Type': 'application/json' },
+        },
+      )
+    }
 
     await createAuditLog({
-      tenantId: tenant.id,
-      userId: user.id,
+      tenantId,
+      userId: dbUserId,
       action: 'document_created',
       resourceType: 'document',
       resourceId: doc.id,
