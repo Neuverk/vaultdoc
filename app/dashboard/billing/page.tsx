@@ -1,4 +1,4 @@
-import { auth } from '@clerk/nextjs/server'
+import { auth, currentUser } from '@clerk/nextjs/server'
 import { db } from '@/lib/db'
 import { tenants, users } from '@/lib/db/schema'
 import { eq } from 'drizzle-orm'
@@ -9,13 +9,23 @@ export default async function BillingPage() {
   const { userId } = await auth()
   if (!userId) return null
 
-  const user = await db.query.users.findFirst({
+  let dbUser = await db.query.users.findFirst({
     where: eq(users.clerkId, userId),
   })
 
-  const tenant = user
+  if (!dbUser) {
+    const clerkUser = await currentUser()
+    const email = clerkUser?.emailAddresses[0]?.emailAddress
+    if (email) {
+      dbUser = await db.query.users.findFirst({
+        where: eq(users.email, email),
+      }) ?? undefined
+    }
+  }
+
+  const tenant = dbUser?.tenantId
     ? await db.query.tenants.findFirst({
-        where: eq(tenants.id, user.tenantId!),
+        where: eq(tenants.id, dbUser.tenantId),
       })
     : null
 

@@ -1,4 +1,4 @@
-import { auth } from '@clerk/nextjs/server'
+import { auth, currentUser } from '@clerk/nextjs/server'
 import { db } from '@/lib/db'
 import { documents, users } from '@/lib/db/schema'
 import { eq } from 'drizzle-orm'
@@ -9,12 +9,23 @@ export default async function LibraryPage() {
   let docs: any[] = []
 
   try {
-    const dbUser = await db.query.users.findFirst({
+    let dbUser = await db.query.users.findFirst({
       where: eq(users.clerkId, userId!),
     })
-    if (dbUser) {
+
+    if (!dbUser) {
+      const clerkUser = await currentUser()
+      const email = clerkUser?.emailAddresses[0]?.emailAddress
+      if (email) {
+        dbUser = await db.query.users.findFirst({
+          where: eq(users.email, email),
+        }) ?? undefined
+      }
+    }
+
+    if (dbUser?.tenantId) {
       docs = await db.query.documents.findMany({
-        where: eq(documents.tenantId, dbUser.tenantId!),
+        where: eq(documents.tenantId, dbUser.tenantId),
         orderBy: (documents, { desc }) => [desc(documents.createdAt)],
       })
     }
