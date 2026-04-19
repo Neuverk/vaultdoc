@@ -1,8 +1,9 @@
-import { auth } from '@clerk/nextjs/server'
+import { auth, currentUser } from '@clerk/nextjs/server'
 import { db } from '@/lib/db'
 import { documents, users, tenants } from '@/lib/db/schema'
 import { eq } from 'drizzle-orm'
 import { notFound } from 'next/navigation'
+import { isValidUUID } from '@/lib/validate'
 import Link from 'next/link'
 import { createAuditLog } from '@/lib/audit'
 import { DeleteButton } from './delete-button'
@@ -19,13 +20,25 @@ export default async function DocumentPage({
   params: Promise<{ id: string }>
 }) {
   const { id } = await params
+  if (!isValidUUID(id)) return notFound()
+
   const { userId } = await auth()
 
   if (!userId) return notFound()
 
-  const dbUser = await db.query.users.findFirst({
+  let dbUser = await db.query.users.findFirst({
     where: eq(users.clerkId, userId),
   })
+
+  if (!dbUser) {
+    const clerkUser = await currentUser()
+    const email = clerkUser?.emailAddresses[0]?.emailAddress
+    if (email) {
+      dbUser = await db.query.users.findFirst({
+        where: eq(users.email, email),
+      }) ?? undefined
+    }
+  }
 
   if (!dbUser?.tenantId) return notFound()
 

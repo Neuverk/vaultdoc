@@ -4,12 +4,15 @@ import { documents, users } from '@/lib/db/schema'
 import { eq } from 'drizzle-orm'
 import { NextRequest, NextResponse } from 'next/server'
 import { createAuditLog } from '@/lib/audit'
+import { isValidUUID } from '@/lib/validate'
 
 export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params
+  if (!isValidUUID(id)) return NextResponse.json({ error: 'Invalid document ID.' }, { status: 400 })
+
   const { userId } = await auth()
   if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
