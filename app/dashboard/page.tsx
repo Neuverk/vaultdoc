@@ -20,9 +20,18 @@ export default async function DashboardPage() {
   let plan: PlanType = 'free'
 
   try {
-    const dbUser = await db.query.users.findFirst({
+    let dbUser = await db.query.users.findFirst({
       where: eq(users.clerkId, userId),
     })
+
+    if (!dbUser) {
+      const email = user?.emailAddresses[0]?.emailAddress
+      if (email) {
+        dbUser = await db.query.users.findFirst({
+          where: eq(users.email, email),
+        }) ?? undefined
+      }
+    }
 
     if (dbUser?.tenantId) {
       const tenant = await db.query.tenants.findFirst({
