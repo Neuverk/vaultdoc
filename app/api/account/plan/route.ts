@@ -1,4 +1,4 @@
-import { auth } from '@clerk/nextjs/server'
+import { auth, currentUser } from '@clerk/nextjs/server'
 import { db } from '@/lib/db'
 import { users, tenants } from '@/lib/db/schema'
 import { eq } from 'drizzle-orm'
@@ -11,10 +11,21 @@ export async function GET() {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const dbUser = await db.query.users.findFirst({
+  let dbUser = await db.query.users.findFirst({
     where: eq(users.clerkId, userId),
     columns: { tenantId: true },
   })
+
+  if (!dbUser) {
+    const clerkUser = await currentUser()
+    const email = clerkUser?.emailAddresses[0]?.emailAddress
+    if (email) {
+      dbUser = await db.query.users.findFirst({
+        where: eq(users.email, email),
+        columns: { tenantId: true },
+      }) ?? undefined
+    }
+  }
 
   if (!dbUser?.tenantId) {
     return NextResponse.json({ error: 'User not found' }, { status: 404 })
