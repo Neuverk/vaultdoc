@@ -131,6 +131,46 @@ export default async function DashboardPage() {
           </section>
         )}
 
+        {docCount === 0 && (
+          <section className="rounded-3xl border border-gray-200 bg-white p-8 shadow-sm">
+            <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+              <div className="max-w-xl">
+                <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-medium text-emerald-700">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                  Start here
+                </div>
+                <h2 className="text-xl font-semibold tracking-tight text-gray-900">
+                  Create your first document to get value from VaultDoc.
+                </h2>
+                <ul className="mt-4 space-y-2">
+                  <li className="flex items-center gap-2.5 text-sm text-gray-600">
+                    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-gray-200 bg-gray-50">
+                      <svg className="h-3 w-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                      </svg>
+                    </span>
+                    Upload an existing policy or draft
+                  </li>
+                  <li className="flex items-center gap-2.5 text-sm text-gray-600">
+                    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-gray-200 bg-gray-50">
+                      <svg className="h-3 w-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                      </svg>
+                    </span>
+                    Or generate one from scratch with AI
+                  </li>
+                </ul>
+              </div>
+              <Link
+                href="/dashboard/documents/new"
+                className="inline-flex shrink-0 items-center justify-center rounded-xl bg-gray-900 px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-gray-800"
+              >
+                Create document →
+              </Link>
+            </div>
+          </section>
+        )}
+
         <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           <Link
             href="/dashboard/library"

@@ -60,22 +60,28 @@ export default async function LibraryPage() {
         </div>
 
         {docs.length === 0 && (
-          <div className="rounded-2xl border border-gray-200 bg-white p-16 text-center shadow-sm">
-            <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-2xl border border-gray-200 bg-gray-50">
-              <svg className="h-6 w-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-              </svg>
+          <div className="rounded-3xl border border-gray-200 bg-white p-10 shadow-sm sm:p-14">
+            <div className="mx-auto max-w-lg text-center">
+              <div className="mx-auto mb-6 flex h-14 w-14 items-center justify-center rounded-2xl border border-gray-200 bg-gray-50">
+                <svg className="h-6 w-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+              </div>
+              <h2 className="text-lg font-semibold text-gray-900">
+                Create your first compliance document
+              </h2>
+              <p className="mx-auto mt-3 max-w-sm text-sm leading-6 text-gray-500">
+                Upload an existing policy or generate one using AI. VaultDoc helps you align with ISO 27001, SOC 2, GDPR and more.
+              </p>
+              <div className="mt-8">
+                <a
+                  href="/dashboard/documents/new"
+                  className="inline-flex items-center justify-center rounded-xl bg-gray-900 px-6 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-gray-800"
+                >
+                  Create your first document →
+                </a>
+              </div>
             </div>
-            <h2 className="text-base font-semibold text-gray-900">No documents yet</h2>
-            <p className="mx-auto mt-2 max-w-sm text-sm text-gray-500">
-              Generate your first AI-powered compliance document to begin building your library.
-            </p>
-            <a
-              href="/dashboard/documents/new"
-              className="mt-6 inline-flex items-center justify-center rounded-xl bg-gray-900 px-6 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-gray-800"
-            >
-              Create your first document
-            </a>
           </div>
         )}
 
