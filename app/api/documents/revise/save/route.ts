@@ -5,6 +5,7 @@ import { documents, users, tenants } from '@/lib/db/schema'
 import { eq, sql, and, or, ne, lt } from 'drizzle-orm'
 import { createAuditLog } from '@/lib/audit'
 import { PLANS } from '@/lib/plans'
+import { isValidUUID } from '@/lib/validate'
 
 const MAX_TITLE_LENGTH = 500
 const MAX_CONTENT_LENGTH = 100_000
@@ -64,6 +65,13 @@ export async function POST(req: NextRequest) {
     )
   }
 
+  if (!isValidUUID(sourceDocumentId)) {
+    return new Response(
+      JSON.stringify({ error: 'Invalid sourceDocumentId.' }),
+      { status: 400, headers: { 'Content-Type': 'application/json' } },
+    )
+  }
+
   const dbUser = await db.query.users.findFirst({
     where: eq(users.clerkId, userId),
   })
@@ -91,63 +99,21 @@ export async function POST(req: NextRequest) {
   const FREE_LIMIT = PLANS.free.maxDocuments
   const tenantId = dbUser.tenantId
 
-  // Atomically claim a quota slot and insert the document.
-  // The UPDATE only succeeds when the plan allows it:
-  //   - plan != 'free'  → no limit (starter / enterprise)
-  //   - plan == 'free'  → only while document_quota_used < FREE_LIMIT
-  // 0 rows returned = quota exceeded; document is never inserted.
-  let newDoc: { id: string } | null = null
-  try {
-    newDoc = await db.transaction(async (tx) => {
-      const [quota] = await tx
-        .update(tenants)
-        .set({ documentQuotaUsed: sql`${tenants.documentQuotaUsed} + 1` })
-        .where(
-          and(
-            eq(tenants.id, tenantId),
-            or(
-              ne(tenants.plan, 'free'),
-              lt(tenants.documentQuotaUsed, FREE_LIMIT),
-            ),
-          ),
-        )
-        .returning({ documentQuotaUsed: tenants.documentQuotaUsed })
-
-      if (!quota) return null
-
-      const [inserted] = await tx
-        .insert(documents)
-        .values({
-          tenantId,
-          createdBy: dbUser.id,
-          title,
-          type,
-          department,
-          frameworks,
-          confidentiality,
-          scope: scope ?? undefined,
-          purpose: purpose ?? undefined,
-          owner: owner ?? undefined,
-          reviewer: reviewer ?? undefined,
-          language,
-          content,
-          status: 'draft',
-          version: '1.0',
-          sourceDocumentId: sourceDocumentId || null,
-        })
-        .returning({ id: documents.id })
-
-      return inserted
-    })
-  } catch (error) {
-    console.error('Revise save: DB transaction failed:', String(error))
-    return new Response(
-      JSON.stringify({ error: 'Failed to save document.' }),
-      { status: 500, headers: { 'Content-Type': 'application/json' } },
+  const [quota] = await db
+    .update(tenants)
+    .set({ documentQuotaUsed: sql`${tenants.documentQuotaUsed} + 1` })
+    .where(
+      and(
+        eq(tenants.id, tenantId),
+        or(
+          ne(tenants.plan, 'free'),
+          lt(tenants.documentQuotaUsed, FREE_LIMIT),
+        ),
+      ),
     )
-  }
+    .returning({ documentQuotaUsed: tenants.documentQuotaUsed })
 
-  if (!newDoc) {
+  if (!quota) {
     return new Response(
       JSON.stringify({
         error: `Free plan limit reached (${FREE_LIMIT} documents max)`,
@@ -155,6 +121,38 @@ export async function POST(req: NextRequest) {
         limit: FREE_LIMIT,
       }),
       { status: 403, headers: { 'Content-Type': 'application/json' } },
+    )
+  }
+
+  let newDoc: { id: string }
+  try {
+    const [inserted] = await db
+      .insert(documents)
+      .values({
+        tenantId,
+        createdBy: dbUser.id,
+        title,
+        type,
+        department,
+        frameworks,
+        confidentiality,
+        scope: scope ?? undefined,
+        purpose: purpose ?? undefined,
+        owner: owner ?? undefined,
+        reviewer: reviewer ?? undefined,
+        language,
+        content,
+        status: 'draft',
+        version: '1.0',
+        sourceDocumentId: sourceDocumentId || null,
+      })
+      .returning({ id: documents.id })
+    newDoc = inserted
+  } catch (error) {
+    console.error('[revise/save] document insert failed:', String(error))
+    return new Response(
+      JSON.stringify({ error: 'Failed to save document.' }),
+      { status: 500, headers: { 'Content-Type': 'application/json' } },
     )
   }
 

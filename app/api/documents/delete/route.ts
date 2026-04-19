@@ -4,6 +4,7 @@ import { db } from '@/lib/db'
 import { documents, users } from '@/lib/db/schema'
 import { eq } from 'drizzle-orm'
 import { createAuditLog } from '@/lib/audit'
+import { isValidUUID } from '@/lib/validate'
 
 export async function DELETE(req: NextRequest) {
   const { userId } = await auth()
@@ -26,6 +27,13 @@ export async function DELETE(req: NextRequest) {
   if (!documentId) {
     return new Response(
       JSON.stringify({ error: 'documentId is required.' }),
+      { status: 400, headers: { 'Content-Type': 'application/json' } },
+    )
+  }
+
+  if (!isValidUUID(documentId)) {
+    return new Response(
+      JSON.stringify({ error: 'Invalid document ID.' }),
       { status: 400, headers: { 'Content-Type': 'application/json' } },
     )
   }

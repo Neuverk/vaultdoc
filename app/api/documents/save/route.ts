@@ -33,18 +33,78 @@ export async function POST(req: NextRequest) {
   } = body
 
   try {
-    const tenantSlug = `user-${userId}`
+    const clerkEmail = clerkUser.emailAddresses[0]?.emailAddress || ''
 
-    let tenant = await db.query.tenants.findFirst({
-      where: eq(tenants.slug, tenantSlug),
+    // ── User + tenant resolution ──────────────────────────────────────────────
+    //
+    // Priority:
+    //  1. Find user by current Clerk userId (fast path, normal case)
+    //  2. Find user by email (Clerk userId changed for same account)
+    //     a. Exactly one match → reuse that account, update clerkId
+    //     b. Multiple matches → fail safely, do NOT create another tenant
+    //     c. No match → create fresh tenant + user
+    //
+    // Tenant is always derived from the resolved user, never looked up by slug
+    // except when creating a brand-new record.
+
+    let user = await db.query.users.findFirst({
+      where: eq(users.clerkId, userId),
     })
 
+    // Resolve the tenant from the user we already found (may be null if user
+    // is new or their tenant row was somehow dropped).
+    let tenant = user?.tenantId
+      ? (await db.query.tenants.findFirst({
+          where: eq(tenants.id, user.tenantId),
+        })) ?? null
+      : null
+
+    if (!user) {
+      // clerkId not in DB — check whether this email already has an account
+      const byEmail = clerkEmail
+        ? await db.query.users.findMany({ where: eq(users.email, clerkEmail) })
+        : []
+
+      if (byEmail.length > 1) {
+        // Multiple users share this email — auto-merge is unsafe
+        console.error('[save] multiple users found for email — cannot auto-merge:', clerkEmail)
+        return new Response(
+          JSON.stringify({ error: 'Account conflict detected. Please contact support.' }),
+          { status: 409, headers: { 'Content-Type': 'application/json' } },
+        )
+      }
+
+      if (byEmail.length === 1) {
+        // Exactly one existing user → reuse their account; update clerkId
+        const existing = byEmail[0]
+        console.log('[save] clerkId reconciled via email — updating clerkId for userId:', existing.id)
+        await db
+          .update(users)
+          .set({
+            clerkId: userId,
+            email: clerkEmail || existing.email,
+            firstName: clerkUser.firstName || existing.firstName || '',
+            lastName: clerkUser.lastName || existing.lastName || '',
+          })
+          .where(eq(users.id, existing.id))
+
+        user = { ...existing, clerkId: userId }
+        tenant = existing.tenantId
+          ? (await db.query.tenants.findFirst({
+              where: eq(tenants.id, existing.tenantId),
+            })) ?? null
+          : null
+      }
+      // else: byEmail.length === 0 → fall through; new user created below
+    }
+
+    // If tenant is still null (new account or orphaned user), create one
     if (!tenant) {
       const [newTenant] = await db
         .insert(tenants)
         .values({
           name: `${clerkUser.firstName || 'My'} Organisation`,
-          slug: tenantSlug,
+          slug: `user-${userId}`,
           plan: 'free',
         })
         .returning()
@@ -52,19 +112,14 @@ export async function POST(req: NextRequest) {
       tenant = newTenant
     }
 
-    console.log('[save] tenantId:', tenant.id, 'plan:', tenant.plan, 'quotaUsed:', tenant.documentQuotaUsed)
-
-    let user = await db.query.users.findFirst({
-      where: eq(users.clerkId, userId),
-    })
-
+    // If user is still null (no clerkId match, no email match), create one
     if (!user) {
       const [newUser] = await db
         .insert(users)
         .values({
           clerkId: userId,
           tenantId: tenant.id,
-          email: clerkUser.emailAddresses[0]?.emailAddress || '',
+          email: clerkEmail,
           firstName: clerkUser.firstName || '',
           lastName: clerkUser.lastName || '',
           role: 'admin',
@@ -73,14 +128,19 @@ export async function POST(req: NextRequest) {
 
       user = newUser
     } else if (user.tenantId !== tenant.id) {
-      console.log('[save] tenantId mismatch — user.tenantId:', user.tenantId, 'slug tenant:', tenant.id, '— remapping user')
+      // User exists but their tenantId doesn't match the resolved tenant
+      // (can happen when a new tenant was just created for an orphaned user)
       await db
         .update(users)
         .set({ tenantId: tenant.id })
-        .where(eq(users.clerkId, userId))
+        .where(eq(users.id, user.id))
 
       user = { ...user, tenantId: tenant.id }
     }
+
+    console.log('[save] tenantId:', tenant.id, 'plan:', tenant.plan, 'quotaUsed:', tenant.documentQuotaUsed)
+
+    // ── Quota + document insert ───────────────────────────────────────────────
 
     const tenantId = tenant.id
     const dbUserId = user.id
