@@ -314,8 +314,10 @@ ${form.tools ? `Tools/Systems: ${form.tools}` : ''}`,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...form, content }),
       })
+      console.log('[saveDocument] status:', res.status)
       if (!res.ok) {
         const json = await res.json().catch(() => ({}))
+        console.log('[saveDocument] error response:', json)
         if (json?.code === 'PLAN_LIMIT_REACHED') {
           setIsAtLimit(true)
           setShowQuotaModal(true)
@@ -324,7 +326,8 @@ ${form.tools ? `Tools/Systems: ${form.tools}` : ''}`,
         throw new Error('Save failed')
       }
       setShowSaveModal(true)
-    } catch {
+    } catch (err) {
+      console.error('[saveDocument] caught error:', err)
       alert('Save failed. Please try again.')
     } finally {
       setSaving(false)

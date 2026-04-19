@@ -52,6 +52,8 @@ export async function POST(req: NextRequest) {
       tenant = newTenant
     }
 
+    console.log('[save] tenantId:', tenant.id, 'plan:', tenant.plan, 'quotaUsed:', tenant.documentQuotaUsed)
+
     let user = await db.query.users.findFirst({
       where: eq(users.clerkId, userId),
     })
@@ -71,6 +73,7 @@ export async function POST(req: NextRequest) {
 
       user = newUser
     } else if (user.tenantId !== tenant.id) {
+      console.log('[save] tenantId mismatch — user.tenantId:', user.tenantId, 'slug tenant:', tenant.id, '— remapping user')
       await db
         .update(users)
         .set({ tenantId: tenant.id })
@@ -83,57 +86,28 @@ export async function POST(req: NextRequest) {
     const dbUserId = user.id
     const FREE_LIMIT = PLANS.free.maxDocuments
 
-    // Atomically claim a quota slot and insert the document in one transaction.
+    // Atomically claim a quota slot via a conditional UPDATE (race-safe at the
+    // Postgres level — single statement with row-level locking). Returns 0 rows
+    // if the free-plan limit is already reached; returns 1 row otherwise.
     //
-    // The UPDATE only touches the row when the plan allows it:
-    //   - plan != 'free'  → always allowed (starter / enterprise have no limit)
-    //   - plan == 'free'  → only allowed while document_quota_used < FREE_LIMIT
-    //
-    // If 0 rows are returned from the UPDATE, another concurrent request already
-    // consumed the last slot (or the limit was already reached). We return null
-    // to signal quota exceeded without inserting any document. The transaction
-    // is rolled back automatically on error, so a failed document insert also
-    // rolls back the quota increment.
-    const doc = await db.transaction(async (tx) => {
-      const [quota] = await tx
-        .update(tenants)
-        .set({ documentQuotaUsed: sql`${tenants.documentQuotaUsed} + 1` })
-        .where(
-          and(
-            eq(tenants.id, tenantId),
-            or(
-              ne(tenants.plan, 'free'),
-              lt(tenants.documentQuotaUsed, FREE_LIMIT),
-            ),
+    // Note: drizzle-orm/neon-http (HTTP driver) does not support db.transaction().
+    // The conditional UPDATE alone is sufficient for atomic quota enforcement.
+    const [quota] = await db
+      .update(tenants)
+      .set({ documentQuotaUsed: sql`${tenants.documentQuotaUsed} + 1` })
+      .where(
+        and(
+          eq(tenants.id, tenantId),
+          or(
+            ne(tenants.plan, 'free'),
+            lt(tenants.documentQuotaUsed, FREE_LIMIT),
           ),
-        )
-        .returning({ documentQuotaUsed: tenants.documentQuotaUsed })
+        ),
+      )
+      .returning({ documentQuotaUsed: tenants.documentQuotaUsed })
 
-      if (!quota) return null
-
-      const [inserted] = await tx
-        .insert(documents)
-        .values({
-          tenantId,
-          createdBy: dbUserId,
-          title,
-          type,
-          department,
-          frameworks,
-          content,
-          scope,
-          purpose,
-          language,
-          confidentiality,
-          status: 'draft',
-          version: '1.0',
-        })
-        .returning()
-
-      return inserted
-    })
-
-    if (!doc) {
+    if (!quota) {
+      console.log('[save] quota check failed — PLAN_LIMIT_REACHED. tenantId:', tenantId, 'limit:', FREE_LIMIT)
       return new Response(
         JSON.stringify({
           error: `Free plan limit reached (${FREE_LIMIT} documents max)`,
@@ -146,6 +120,27 @@ export async function POST(req: NextRequest) {
         },
       )
     }
+
+    console.log('[save] quota claimed — new quotaUsed:', quota.documentQuotaUsed, '— inserting document')
+
+    const [doc] = await db
+      .insert(documents)
+      .values({
+        tenantId,
+        createdBy: dbUserId,
+        title,
+        type,
+        department,
+        frameworks,
+        content,
+        scope,
+        purpose,
+        language,
+        confidentiality,
+        status: 'draft',
+        version: '1.0',
+      })
+      .returning()
 
     await createAuditLog({
       tenantId,
@@ -168,11 +163,13 @@ export async function POST(req: NextRequest) {
       },
     })
 
+    console.log('[save] success — docId:', doc.id)
+
     return new Response(JSON.stringify({ success: true, id: doc.id }), {
       headers: { 'Content-Type': 'application/json' },
     })
   } catch (error) {
-    console.error('Save error:', error)
+    console.error('[save] unexpected error:', error)
     return new Response(
       JSON.stringify({ error: 'Failed to save document.' }),
       {
