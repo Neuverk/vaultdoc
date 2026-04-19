@@ -5,6 +5,7 @@ import { extractTextFromFile } from '@/lib/extract-reference-text'
 export const maxDuration = 30
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10 MB
+const MAX_TEXT_LENGTH = 15_000
 const ALLOWED_TYPES = [
   'text/plain',
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
@@ -48,21 +49,9 @@ export async function POST(req: NextRequest) {
     )
   }
 
+  let text: string
   try {
-    const text = await extractTextFromFile(file)
-    const safeText = text.slice(0, 15000).trim()
-
-    if (!safeText) {
-      return new Response(
-        JSON.stringify({ error: 'No readable text found in the uploaded file.' }),
-        { status: 400, headers: { 'Content-Type': 'application/json' } },
-      )
-    }
-
-    return new Response(
-      JSON.stringify({ success: true, text: safeText }),
-      { headers: { 'Content-Type': 'application/json' } },
-    )
+    text = await extractTextFromFile(file)
   } catch (error) {
     console.error('Reference upload extraction error:', String(error))
     return new Response(
@@ -70,4 +59,19 @@ export async function POST(req: NextRequest) {
       { status: 500, headers: { 'Content-Type': 'application/json' } },
     )
   }
+
+  // Trim whitespace before capping so the character budget is spent on content.
+  const safeText = text.trim().slice(0, MAX_TEXT_LENGTH)
+
+  if (!safeText) {
+    return new Response(
+      JSON.stringify({ error: 'No readable text found in the uploaded file.' }),
+      { status: 422, headers: { 'Content-Type': 'application/json' } },
+    )
+  }
+
+  return new Response(
+    JSON.stringify({ text: safeText }),
+    { headers: { 'Content-Type': 'application/json' } },
+  )
 }

@@ -2,12 +2,12 @@ import Anthropic from '@anthropic-ai/sdk'
 import { auth } from '@clerk/nextjs/server'
 import { NextRequest } from 'next/server'
 import { db } from '@/lib/db'
-
-export const maxDuration = 60
 import { tenants, users } from '@/lib/db/schema'
 import { eq } from 'drizzle-orm'
 import { checkRateLimit } from '@/lib/rate-limit'
 import type { PlanType } from '@/lib/plans'
+
+export const maxDuration = 60
 
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY!,
@@ -93,8 +93,7 @@ async function getUserPlan(userId: string): Promise<PlanType> {
     })
 
     return (tenant?.plan ?? 'free') as PlanType
-  } catch (error) {
-    console.error('Failed to resolve user plan:', String(error))
+  } catch {
     return 'free'
   }
 }
@@ -116,11 +115,11 @@ export async function POST(req: NextRequest) {
   const plan = await getUserPlan(userId)
   const chatLimit = CHAT_LIMITS[plan] ?? CHAT_LIMITS.free
 
- const rateLimit = await checkRateLimit(
-  `documents:chat:${userId}`,
-  chatLimit,
-  CHAT_WINDOW_MS,
-)
+  const rateLimit = await checkRateLimit(
+    `documents:chat:${userId}`,
+    chatLimit,
+    CHAT_WINDOW_MS,
+  )
 
   if (!rateLimit.success) {
     return new Response(
@@ -139,12 +138,11 @@ export async function POST(req: NextRequest) {
     )
   }
 
-  let body: any = null
+  let body: unknown = null
 
   try {
     body = await req.json()
-  } catch (error) {
-    console.error('Chat route: invalid JSON body', error)
+  } catch {
     return new Response(JSON.stringify(buildFallbackQuestion()), {
       status: 200,
       headers: {
@@ -154,12 +152,9 @@ export async function POST(req: NextRequest) {
     })
   }
 
-  const messages = sanitizeMessages(body?.messages)
-
-  console.log('Chat route received messages count:', messages.length)
+  const messages = sanitizeMessages((body as Record<string, unknown>)?.messages)
 
   if (messages.length === 0) {
-    console.error('Chat route: no valid messages after sanitization', body)
     return new Response(JSON.stringify(buildFallbackQuestion()), {
       status: 200,
       headers: {
@@ -208,9 +203,7 @@ RULES:
           'X-RateLimit-Remaining': String(rateLimit.remaining),
         },
       })
-    } catch (parseError) {
-      console.error('Chat route: failed to parse Anthropic JSON', parseError, text)
-
+    } catch {
       return new Response(
         JSON.stringify({
           ready: false,
@@ -226,9 +219,7 @@ RULES:
         },
       )
     }
-  } catch (error) {
-    console.error('Anthropic chat error:', String(error))
-
+  } catch {
     return new Response(
       JSON.stringify({
         ready: false,
