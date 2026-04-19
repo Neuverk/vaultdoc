@@ -138,7 +138,6 @@ export async function POST(req: NextRequest) {
         JSON.stringify({
           error: `Free plan limit reached (${FREE_LIMIT} documents max)`,
           code: 'PLAN_LIMIT_REACHED',
-          quotaUsed: FREE_LIMIT,
           limit: FREE_LIMIT,
         }),
         {

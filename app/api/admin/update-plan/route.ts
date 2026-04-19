@@ -1,5 +1,5 @@
 import { auth, currentUser } from '@clerk/nextjs/server'
-import { NextRequest } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { tenants } from '@/lib/db/schema'
 import { eq } from 'drizzle-orm'
@@ -12,53 +12,39 @@ type AllowedPlan = (typeof ALLOWED_PLANS)[number]
 
 export async function POST(req: NextRequest) {
   const { userId } = await auth()
+
   if (!userId) {
-    return new Response('Unauthorized', { status: 401 })
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
   const clerkUser = await currentUser()
   const email = clerkUser?.emailAddresses?.[0]?.emailAddress ?? null
 
   if (!isPlatformAdmin(email)) {
-    return new Response('Forbidden', { status: 403 })
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
   let tenantId = ''
-  let newPlan = ''
+  let newPlan = '' as AllowedPlan | ''
 
   try {
     const body = await req.json()
     tenantId = String(body.tenantId ?? '').trim()
-    newPlan = String(body.newPlan ?? '').trim()
+    newPlan = String(body.newPlan ?? '').trim() as AllowedPlan | ''
   } catch (error) {
     console.error('Admin update-plan: failed to parse request body', String(error))
-    return new Response(
-      JSON.stringify({ error: 'Invalid JSON body.' }),
-      {
-        status: 400,
-        headers: { 'Content-Type': 'application/json' },
-      },
-    )
+    return NextResponse.json({ error: 'Invalid JSON body.' }, { status: 400 })
   }
 
   if (!tenantId || !newPlan) {
-    return new Response(
-      JSON.stringify({ error: 'Missing tenantId or newPlan.' }),
-      {
-        status: 400,
-        headers: { 'Content-Type': 'application/json' },
-      },
+    return NextResponse.json(
+      { error: 'Missing tenantId or newPlan.' },
+      { status: 400 },
     )
   }
 
-  if (!ALLOWED_PLANS.includes(newPlan as AllowedPlan)) {
-    return new Response(
-      JSON.stringify({ error: 'Invalid plan value.' }),
-      {
-        status: 400,
-        headers: { 'Content-Type': 'application/json' },
-      },
-    )
+  if (!ALLOWED_PLANS.includes(newPlan)) {
+    return NextResponse.json({ error: 'Invalid plan value.' }, { status: 400 })
   }
 
   const tenant = await db.query.tenants.findFirst({
@@ -66,29 +52,38 @@ export async function POST(req: NextRequest) {
   })
 
   if (!tenant) {
-    return new Response(
-      JSON.stringify({ error: 'Tenant not found.' }),
-      {
-        status: 404,
-        headers: { 'Content-Type': 'application/json' },
-      },
-    )
+    return NextResponse.json({ error: 'Tenant not found.' }, { status: 404 })
   }
 
   if (tenant.plan === newPlan) {
-    return new Response(
-      JSON.stringify({ success: true, message: 'Plan already set.' }),
-      {
-        headers: { 'Content-Type': 'application/json' },
-      },
-    )
+    revalidatePath('/dashboard', 'layout')
+    revalidatePath('/dashboard/admin')
+    revalidatePath('/dashboard/library')
+
+    return NextResponse.json({
+      success: true,
+      message: 'Plan already set.',
+      tenantId,
+      plan: tenant.plan,
+    })
   }
 
   try {
-    await db
+    const updated = await db
       .update(tenants)
       .set({ plan: newPlan })
       .where(eq(tenants.id, tenantId))
+      .returning({
+        id: tenants.id,
+        plan: tenants.plan,
+      })
+
+    if (!updated.length) {
+      return NextResponse.json(
+        { error: 'Tenant not found or not updated.' },
+        { status: 404 },
+      )
+    }
 
     await createAuditLog({
       tenantId,
@@ -101,22 +96,20 @@ export async function POST(req: NextRequest) {
       },
     })
 
+    revalidatePath('/dashboard', 'layout')
     revalidatePath('/dashboard/admin')
+    revalidatePath('/dashboard/library')
 
-    return new Response(
-      JSON.stringify({ success: true }),
-      {
-        headers: { 'Content-Type': 'application/json' },
-      },
-    )
+    return NextResponse.json({
+      success: true,
+      tenantId: updated[0].id,
+      plan: updated[0].plan,
+    })
   } catch (error) {
     console.error('Admin update-plan failed:', String(error))
-    return new Response(
-      JSON.stringify({ error: 'Failed to update tenant plan.' }),
-      {
-        status: 500,
-        headers: { 'Content-Type': 'application/json' },
-      },
+    return NextResponse.json(
+      { error: 'Failed to update tenant plan.' },
+      { status: 500 },
     )
   }
 }
