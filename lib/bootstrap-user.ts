@@ -18,17 +18,16 @@ type BootstrapInput = {
 }
 
 /**
- * Resolves or creates the Neon user + tenant for a given Clerk userId.
+ * Resolves or creates the Neon user + tenant for a given Clerk user.
  *
- * Resolution order (mirrors save/route.ts):
- *  1. Find user by clerkId (fast path)
- *  2. Find user by email (handles clerkId rotation)
- *     a. Exactly one match → reuse account, update clerkId
- *     b. Multiple matches → conflict, return null
- *     c. No match → create fresh tenant + user
+ * Resolution order:
+ *  1. Find user by clerkId
+ *  2. Find user by email
+ *     - exactly one match: reuse and reconcile clerkId/profile fields
+ *     - multiple matches: conflict, return null
+ *     - no match: create tenant + user
  *
  * Returns null only on unresolvable conflict.
- * Callers are responsible for obtaining Clerk user data before calling.
  */
 export async function bootstrapUser({
   clerkUserId,
@@ -36,18 +35,20 @@ export async function bootstrapUser({
   firstName,
   lastName,
 }: BootstrapInput): Promise<BootstrappedUser | null> {
-  // ── 1. Fast path: look up by clerkId ─────────────────────────────────────
   let user = await db.query.users.findFirst({
     where: eq(users.clerkId, clerkUserId),
   })
 
   let tenant: TenantRow | null = user?.tenantId
-    ? (await db.query.tenants.findFirst({ where: eq(tenants.id, user.tenantId) })) ?? null
+    ? (await db.query.tenants.findFirst({
+        where: eq(tenants.id, user.tenantId),
+      })) ?? null
     : null
 
-  if (user && tenant) return { user, tenant }
+  if (user && tenant) {
+    return { user, tenant }
+  }
 
-  // ── 2. Email fallback (handles clerkId change for same account) ──────────
   if (!user && email) {
     const byEmail = await db.query.users.findMany({
       where: eq(users.email, email),
@@ -60,6 +61,7 @@ export async function bootstrapUser({
 
     if (byEmail.length === 1) {
       const existing = byEmail[0]
+
       await db
         .update(users)
         .set({
@@ -70,14 +72,22 @@ export async function bootstrapUser({
         })
         .where(eq(users.id, existing.id))
 
-      user = { ...existing, clerkId: clerkUserId }
+      user = {
+        ...existing,
+        clerkId: clerkUserId,
+        email: email || existing.email,
+        firstName: firstName || existing.firstName || '',
+        lastName: lastName || existing.lastName || '',
+      }
+
       tenant = existing.tenantId
-        ? (await db.query.tenants.findFirst({ where: eq(tenants.id, existing.tenantId) })) ?? null
+        ? (await db.query.tenants.findFirst({
+            where: eq(tenants.id, existing.tenantId),
+          })) ?? null
         : null
     }
   }
 
-  // ── 3. Create tenant if still missing ────────────────────────────────────
   if (!tenant) {
     const [newTenant] = await db
       .insert(tenants)
@@ -91,7 +101,6 @@ export async function bootstrapUser({
     tenant = newTenant
   }
 
-  // ── 4. Create user if still missing ──────────────────────────────────────
   if (!user) {
     const [newUser] = await db
       .insert(users)

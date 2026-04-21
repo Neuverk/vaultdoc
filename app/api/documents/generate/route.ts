@@ -1,9 +1,10 @@
 import Anthropic from '@anthropic-ai/sdk'
 import { auth, currentUser } from '@clerk/nextjs/server'
 import { NextRequest } from 'next/server'
-import { checkRateLimit } from '@/lib/rate-limit'
-import { canCreateDocument } from '@/lib/plan-limits'
+
 import { bootstrapUser } from '@/lib/bootstrap-user'
+import { canCreateDocument } from '@/lib/plan-limits'
+import { checkRateLimit } from '@/lib/rate-limit'
 
 export const maxDuration = 60
 
@@ -12,12 +13,24 @@ const anthropic = new Anthropic({
 })
 
 const MAX_FIELD_LENGTH = 2000
+const MAX_ARRAY_ITEMS = 20
+const MAX_MESSAGES = 12
 const GENERATE_LIMIT = 10
 const GENERATE_WINDOW_MS = 60 * 60 * 1000
 
 type ChatMessage = {
   role: 'user' | 'assistant'
   content: string
+}
+
+function jsonResponse(body: unknown, status = 200, extraHeaders?: HeadersInit) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: {
+      'Content-Type': 'application/json',
+      ...(extraHeaders ?? {}),
+    },
+  })
 }
 
 function stripHtml(input: string): string {
@@ -58,7 +71,7 @@ function sanitizeStringArray(value: unknown): string[] {
   return value
     .map((item) => sanitizeField(item))
     .filter(Boolean)
-    .slice(0, 20)
+    .slice(0, MAX_ARRAY_ITEMS)
 }
 
 function sanitizeMessages(value: unknown): ChatMessage[] {
@@ -86,82 +99,79 @@ function sanitizeMessages(value: unknown): ChatMessage[] {
         content: sanitizeField(rawContent),
       }
     })
-    .filter((msg) => msg.content.length > 0)
-    .slice(0, 12)
+    .filter((message) => message.content.length > 0)
+    .slice(0, MAX_MESSAGES)
+}
+
+function isValidGeneratedDocument(content: string): boolean {
+  if (!content || content.trim().length < 300) return false
+  if (!content.includes('##')) return false
+  if (!content.includes('## 1. Purpose') && !content.includes('## 1.')) return false
+  return true
 }
 
 export async function POST(req: NextRequest) {
   const { userId } = await auth()
+
   if (!userId) {
-    return new Response('Unauthorized', { status: 401 })
+    return jsonResponse({ error: 'Unauthorized' }, 401)
   }
 
   const rateLimit = await checkRateLimit(
-  `documents:generate:${userId}`,
-  GENERATE_LIMIT,
-  GENERATE_WINDOW_MS,
-)
+    `documents:generate:${userId}`,
+    GENERATE_LIMIT,
+    GENERATE_WINDOW_MS,
+  )
 
   if (!rateLimit.success) {
-    return new Response(
-      JSON.stringify({
+    return jsonResponse(
+      {
         error:
           'Rate limit exceeded. You can generate up to 10 documents per hour. Please try again later.',
-      }),
+      },
+      429,
       {
-        status: 429,
-        headers: {
-          'Content-Type': 'application/json',
-          'Retry-After': String(
-            Math.max(1, Math.ceil((rateLimit.resetAt - Date.now()) / 1000)),
-          ),
-        },
+        'Retry-After': String(
+          Math.max(1, Math.ceil((rateLimit.resetAt - Date.now()) / 1000)),
+        ),
       },
     )
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let body: any
   try {
     body = await req.json()
   } catch {
-    return new Response(JSON.stringify({ error: 'Invalid request body.' }), {
-      status: 400,
-      headers: { 'Content-Type': 'application/json' },
-    })
+    return jsonResponse({ error: 'Invalid request body.' }, 400)
   }
 
   const clerkUser = await currentUser()
   if (!clerkUser) {
-    return new Response('Unauthorized', { status: 401 })
+    return jsonResponse({ error: 'Unauthorized' }, 401)
   }
 
-  // Bootstrap resolves or creates the user+tenant row for new Clerk signups
   const bootstrapped = await bootstrapUser({
     clerkUserId: userId,
     email: clerkUser.emailAddresses[0]?.emailAddress ?? '',
     firstName: clerkUser.firstName,
     lastName: clerkUser.lastName,
   })
+
   if (!bootstrapped) {
-    return new Response(JSON.stringify({ error: 'Unable to verify plan limits.' }), {
-      status: 403,
-      headers: { 'Content-Type': 'application/json' },
-    })
+    return jsonResponse({ error: 'Unable to verify plan limits.' }, 403)
   }
 
   const quota = await canCreateDocument(bootstrapped.tenant.id)
   if (!quota.allowed) {
-    return new Response(
-      JSON.stringify({
-        error: quota.reason ?? 'Document limit reached for your plan.',
+    return jsonResponse(
+      {
+        error:
+          quota.reason ??
+          'You’ve reached the document limit for your current plan.',
         code: 'PLAN_LIMIT_REACHED',
         limit: quota.limit,
-      }),
-      {
-        status: 403,
-        headers: { 'Content-Type': 'application/json' },
       },
+      403,
     )
   }
 
@@ -180,33 +190,15 @@ export async function POST(req: NextRequest) {
   const confidentiality = sanitizeField(rawMeta.confidentiality)
 
   if (!title) {
-    return new Response(
-      JSON.stringify({ error: 'Document title is required.' }),
-      {
-        status: 400,
-        headers: { 'Content-Type': 'application/json' },
-      },
-    )
+    return jsonResponse({ error: 'Document title is required.' }, 400)
   }
 
   if (!type) {
-    return new Response(
-      JSON.stringify({ error: 'Document type is required.' }),
-      {
-        status: 400,
-        headers: { 'Content-Type': 'application/json' },
-      },
-    )
+    return jsonResponse({ error: 'Document type is required.' }, 400)
   }
 
   if (frameworks.length === 0) {
-    return new Response(
-      JSON.stringify({ error: 'At least one framework is required.' }),
-      {
-        status: 400,
-        headers: { 'Content-Type': 'application/json' },
-      },
-    )
+    return jsonResponse({ error: 'At least one framework is required.' }, 400)
   }
 
   const frameworkList = frameworks.join(', ')
@@ -214,14 +206,26 @@ export async function POST(req: NextRequest) {
   const chatContext =
     messages.length > 0
       ? `\n\nAdditional context gathered through interview:\n${messages
-          .filter((m) => m.role === 'user')
-          .map((m) => `Answer: ${m.content}`) 
+          .filter((message) => message.role === 'user')
+          .map((message) => `Answer: ${message.content}`)
           .join('\n')}`
       : ''
 
-const systemPrompt = `You are a senior compliance documentation writer. Write in ${language || 'English'} using clear, practical, professional language. Use markdown with ## sections, ### subsections, **bold** for key terms, and - for bullets. Be specific, concise, and usable by real teams.`
+  const systemPrompt = `You are a senior compliance documentation writer.
 
-const userPrompt = `Write a complete, professional ${type} for: "${title}"
+Write in ${language || 'English'} using clear, practical, professional language.
+
+Rules:
+- Always produce structured, audit-ready markdown
+- Use ## sections and ### subsections
+- Use **bold** only for important terms
+- Use - for bullet points
+- Do not mention AI, uncertainty, or speculation
+- Do not include filler text
+- Do not invent assumptions beyond the provided details
+- Keep the document practical, complete, and usable by real teams`
+
+  const userPrompt = `Write a complete, professional ${type} for: "${title}"
 
 Core details:
 - Department: ${department || 'General'}
@@ -251,6 +255,7 @@ Important:
 - Keep the document concise but complete
 - Include framework control references only where clearly relevant
 - Do not add filler text`
+
   try {
     const message = await anthropic.messages.create({
       model: 'claude-sonnet-4-20250514',
@@ -262,20 +267,28 @@ Important:
     const content =
       message.content[0]?.type === 'text' ? message.content[0].text : ''
 
-    return new Response(JSON.stringify({ content }), {
-      headers: {
-        'Content-Type': 'application/json',
+    if (!isValidGeneratedDocument(content)) {
+      return jsonResponse(
+        {
+          error:
+            'Generated document structure was invalid. Please try again.',
+        },
+        500,
+        {
+          'X-RateLimit-Remaining': String(rateLimit.remaining),
+        },
+      )
+    }
+
+    return jsonResponse(
+      { content },
+      200,
+      {
         'X-RateLimit-Remaining': String(rateLimit.remaining),
       },
-    })
+    )
   } catch (error) {
     console.error('Anthropic error:', String(error))
-    return new Response(
-      JSON.stringify({ error: 'Failed to generate document.' }),
-      {
-        status: 500,
-        headers: { 'Content-Type': 'application/json' },
-      },
-    )
+    return jsonResponse({ error: 'Failed to generate document.' }, 500)
   }
 }
