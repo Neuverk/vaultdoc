@@ -1,6 +1,8 @@
 const PLATFORM_ADMIN_EMAILS: ReadonlySet<string> = new Set(
-  (process.env.PLATFORM_ADMIN_EMAILS ?? '')
-    .split(',')
+  [
+    ...(process.env.PLATFORM_ADMIN_EMAILS ?? '').split(','),
+    ...(process.env.ADMIN_EMAIL ? [process.env.ADMIN_EMAIL] : []),
+  ]
     .map((e) => e.trim().toLowerCase())
     .filter(Boolean),
 )

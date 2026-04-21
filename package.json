@@ -7,7 +7,6 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-
     "db:push": "dotenv -e .env.local -- drizzle-kit push",
     "db:studio": "dotenv -e .env.local -- drizzle-kit studio",
     "db:generate": "dotenv -e .env.local -- drizzle-kit generate",
@@ -30,6 +29,7 @@
     "next": "16.2.3",
     "react": "19.2.4",
     "react-dom": "19.2.4",
+    "resend": "^6.12.2",
     "stripe": "^22.0.1"
   },
   "devDependencies": {

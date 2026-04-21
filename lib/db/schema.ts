@@ -74,6 +74,19 @@ export const approvals = pgTable('approvals', {
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 })
 
+// ─── BETA REQUESTS ────────────────────────────────────────
+export const betaRequests = pgTable('beta_requests', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  name: text('name').notNull(),
+  email: text('email').notNull().unique(),
+  company: text('company').notNull(),
+  useCase: text('use_case'),
+  status: text('status').notNull().default('pending'), // pending | approved | rejected
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  reviewedAt: timestamp('reviewed_at'),
+  reviewNote: text('review_note'),
+})
+
 // ─── STRIPE EVENTS (idempotency dedup) ───────────────────
 export const stripeEvents = pgTable('stripe_events', {
   id: text('id').primaryKey(), // Stripe event ID e.g. evt_...
