@@ -74,6 +74,12 @@ export const approvals = pgTable('approvals', {
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 })
 
+// ─── STRIPE EVENTS (idempotency dedup) ───────────────────
+export const stripeEvents = pgTable('stripe_events', {
+  id: text('id').primaryKey(), // Stripe event ID e.g. evt_...
+  processedAt: timestamp('processed_at').defaultNow().notNull(),
+})
+
 // ─── AUDIT LOG ────────────────────────────────────────────
 export const auditLogs = pgTable('audit_logs', {
   id: uuid('id').defaultRandom().primaryKey(),

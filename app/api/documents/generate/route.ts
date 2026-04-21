@@ -166,8 +166,9 @@ export async function POST(req: NextRequest) {
     return jsonResponse(
       {
         error:
-          quota.reason ??
-          'You’ve reached the document limit for your current plan.',
+          quota.limit != null
+            ? `You’ve reached your current plan limit (${quota.limit} documents). Upgrade to continue.`
+            : "You’ve reached your current plan limit. Upgrade to continue.",
         code: 'PLAN_LIMIT_REACHED',
         limit: quota.limit,
       },

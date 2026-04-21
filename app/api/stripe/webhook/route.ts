@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import Stripe from 'stripe'
 import { stripe } from '@/lib/stripe'
 import { db } from '@/lib/db'
-import { tenants } from '@/lib/db/schema'
+import { tenants, stripeEvents } from '@/lib/db/schema'
 import { eq } from 'drizzle-orm'
 import { createAuditLog } from '@/lib/audit'
 
@@ -95,10 +95,7 @@ export async function POST(req: Request) {
   const sig = req.headers.get('stripe-signature')
 
   if (!sig) {
-    return NextResponse.json(
-      { error: 'Missing Stripe signature' },
-      { status: 400 },
-    )
+    return NextResponse.json({ error: 'Missing Stripe signature' }, { status: 400 })
   }
 
   let event: Stripe.Event
@@ -114,7 +111,35 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Invalid signature' }, { status: 400 })
   }
 
+  // Idempotency: skip events already processed
+  const alreadyProcessed = await db.query.stripeEvents.findFirst({
+    where: eq(stripeEvents.id, event.id),
+  })
+  if (alreadyProcessed) {
+    return NextResponse.json({ received: true })
+  }
+
   switch (event.type) {
+    case 'checkout.session.completed': {
+      const session = event.data.object as Stripe.Checkout.Session
+      const tenantId = session.metadata?.tenantId
+      const customerId =
+        typeof session.customer === 'string' ? session.customer : null
+
+      if (tenantId && customerId) {
+        // Safety net: persist stripeCustomerId if the checkout route's DB write failed
+        await db
+          .update(tenants)
+          .set({ stripeCustomerId: customerId })
+          .where(eq(tenants.id, tenantId))
+      } else {
+        console.error(
+          `[webhook] checkout.session.completed missing tenantId or customerId — session ${session.id}`,
+        )
+      }
+      break
+    }
+
     case 'customer.subscription.created':
     case 'customer.subscription.updated': {
       const subscription = event.data.object as Stripe.Subscription
@@ -124,7 +149,7 @@ export async function POST(req: Request) {
         await updateTenantSubscription(tenantId, subscription)
       } else {
         console.error(
-          `Stripe webhook ${event.type} missing tenantId in metadata for subscription ${subscription.id}`,
+          `[webhook] ${event.type} missing tenantId in metadata — subscription ${subscription.id}`,
         )
       }
       break
@@ -138,8 +163,41 @@ export async function POST(req: Request) {
         await cancelTenantSubscription(tenantId, subscription)
       } else {
         console.error(
-          `Stripe webhook ${event.type} missing tenantId in metadata for subscription ${subscription.id}`,
+          `[webhook] ${event.type} missing tenantId in metadata — subscription ${subscription.id}`,
         )
+      }
+      break
+    }
+
+    case 'invoice.payment_failed': {
+      const invoice = event.data.object as Stripe.Invoice
+      const customerId =
+        typeof invoice.customer === 'string' ? invoice.customer : null
+
+      if (customerId) {
+        const tenant = await db.query.tenants.findFirst({
+          where: eq(tenants.stripeCustomerId, customerId),
+        })
+
+        if (tenant) {
+          await db
+            .update(tenants)
+            .set({ stripeSubscriptionStatus: 'past_due' })
+            .where(eq(tenants.id, tenant.id))
+
+          await createAuditLog({
+            tenantId: tenant.id,
+            userId: null,
+            action: 'payment_failed',
+            resourceType: 'billing',
+            resourceId: tenant.id,
+            metadata: {
+              stripeEvent: 'invoice.payment_failed',
+              invoiceId: invoice.id,
+              customerId,
+            },
+          })
+        }
       }
       break
     }
@@ -147,6 +205,9 @@ export async function POST(req: Request) {
     default:
       break
   }
+
+  // Mark event processed — ON CONFLICT DO NOTHING handles rare duplicate-request races
+  await db.insert(stripeEvents).values({ id: event.id }).onConflictDoNothing()
 
   return NextResponse.json({ received: true })
 }
