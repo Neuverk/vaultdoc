@@ -170,8 +170,6 @@ export function downloadPDF(
   meta: DocExportMeta,
   watermark = false,
 ): void {
-  console.log('downloadPDF watermark value:', watermark)
-
   const printWindow = window.open('', '_blank')
   if (!printWindow) return
 

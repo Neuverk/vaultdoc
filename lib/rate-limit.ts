@@ -40,13 +40,13 @@ function getRedis(): Redis | null {
 // ─── Rate limiter cache ───────────────────────────────────────────────────────
 // We cache Ratelimit instances by window size to avoid recreating them on every request.
 
-const limiterCache = new Map<number, Ratelimit>()
+const limiterCache = new Map<string, Ratelimit>()
 
 function getLimiter(limit: number, windowSeconds: number): Ratelimit | null {
   const client = getRedis()
   if (!client) return null
 
-  const cacheKey = limit * 1_000_000 + windowSeconds
+  const cacheKey = `${limit}:${windowSeconds}`
 
   if (!limiterCache.has(cacheKey)) {
     limiterCache.set(

@@ -1,9 +1,7 @@
 import { auth, currentUser } from '@clerk/nextjs/server'
-import { db } from '@/lib/db'
-import { users, tenants } from '@/lib/db/schema'
-import { eq } from 'drizzle-orm'
 import { NextResponse } from 'next/server'
 import { PLANS } from '@/lib/plans'
+import { bootstrapUser } from '@/lib/bootstrap-user'
 
 export async function GET() {
   const { userId } = await auth()
@@ -11,35 +9,23 @@ export async function GET() {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  let dbUser = await db.query.users.findFirst({
-    where: eq(users.clerkId, userId),
-    columns: { tenantId: true },
+  const clerkUser = await currentUser()
+  if (!clerkUser) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  const bootstrapped = await bootstrapUser({
+    clerkUserId: userId,
+    email: clerkUser.emailAddresses[0]?.emailAddress ?? '',
+    firstName: clerkUser.firstName,
+    lastName: clerkUser.lastName,
   })
 
-  if (!dbUser) {
-    const clerkUser = await currentUser()
-    const email = clerkUser?.emailAddresses[0]?.emailAddress
-    if (email) {
-      dbUser = await db.query.users.findFirst({
-        where: eq(users.email, email),
-        columns: { tenantId: true },
-      }) ?? undefined
-    }
+  if (!bootstrapped) {
+    return NextResponse.json({ error: 'Unable to initialize user account.' }, { status: 500 })
   }
 
-  if (!dbUser?.tenantId) {
-    return NextResponse.json({ error: 'User not found' }, { status: 404 })
-  }
-
-  const tenant = await db.query.tenants.findFirst({
-    where: eq(tenants.id, dbUser.tenantId),
-    columns: { plan: true, documentQuotaUsed: true },
-  })
-
-  if (!tenant) {
-    return NextResponse.json({ error: 'Tenant not found' }, { status: 404 })
-  }
-
+  const { tenant } = bootstrapped
   const planKey = tenant.plan as keyof typeof PLANS
   const maxDocuments = PLANS[planKey]?.maxDocuments ?? 3
   const quotaUsed = tenant.documentQuotaUsed ?? 0

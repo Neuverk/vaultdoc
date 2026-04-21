@@ -1,7 +1,9 @@
 import Anthropic from '@anthropic-ai/sdk'
-import { auth } from '@clerk/nextjs/server'
+import { auth, currentUser } from '@clerk/nextjs/server'
 import { NextRequest } from 'next/server'
 import { checkRateLimit } from '@/lib/rate-limit'
+import { canCreateDocument } from '@/lib/plan-limits'
+import { bootstrapUser } from '@/lib/bootstrap-user'
 
 export const maxDuration = 60
 
@@ -118,7 +120,50 @@ export async function POST(req: NextRequest) {
     )
   }
 
-  const body = await req.json()
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let body: any
+  try {
+    body = await req.json()
+  } catch {
+    return new Response(JSON.stringify({ error: 'Invalid request body.' }), {
+      status: 400,
+      headers: { 'Content-Type': 'application/json' },
+    })
+  }
+
+  const clerkUser = await currentUser()
+  if (!clerkUser) {
+    return new Response('Unauthorized', { status: 401 })
+  }
+
+  // Bootstrap resolves or creates the user+tenant row for new Clerk signups
+  const bootstrapped = await bootstrapUser({
+    clerkUserId: userId,
+    email: clerkUser.emailAddresses[0]?.emailAddress ?? '',
+    firstName: clerkUser.firstName,
+    lastName: clerkUser.lastName,
+  })
+  if (!bootstrapped) {
+    return new Response(JSON.stringify({ error: 'Unable to verify plan limits.' }), {
+      status: 403,
+      headers: { 'Content-Type': 'application/json' },
+    })
+  }
+
+  const quota = await canCreateDocument(bootstrapped.tenant.id)
+  if (!quota.allowed) {
+    return new Response(
+      JSON.stringify({
+        error: quota.reason ?? 'Document limit reached for your plan.',
+        code: 'PLAN_LIMIT_REACHED',
+        limit: quota.limit,
+      }),
+      {
+        status: 403,
+        headers: { 'Content-Type': 'application/json' },
+      },
+    )
+  }
 
   const rawMeta = body?.meta ?? body ?? {}
   const messages = sanitizeMessages(body?.messages)

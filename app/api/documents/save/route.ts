@@ -67,7 +67,7 @@ export async function POST(req: NextRequest) {
 
       if (byEmail.length > 1) {
         // Multiple users share this email — auto-merge is unsafe
-        console.error('[save] multiple users found for email — cannot auto-merge:', clerkEmail)
+        console.error('[save] multiple users found for same email — cannot auto-merge')
         return new Response(
           JSON.stringify({ error: 'Account conflict detected. Please contact support.' }),
           { status: 409, headers: { 'Content-Type': 'application/json' } },
@@ -77,7 +77,7 @@ export async function POST(req: NextRequest) {
       if (byEmail.length === 1) {
         // Exactly one existing user → reuse their account; update clerkId
         const existing = byEmail[0]
-        console.log('[save] clerkId reconciled via email — updating clerkId for userId:', existing.id)
+        console.log('[save] clerkId reconciled via email match')
         await db
           .update(users)
           .set({
@@ -138,8 +138,6 @@ export async function POST(req: NextRequest) {
       user = { ...user, tenantId: tenant.id }
     }
 
-    console.log('[save] tenantId:', tenant.id, 'plan:', tenant.plan, 'quotaUsed:', tenant.documentQuotaUsed)
-
     // ── Quota + document insert ───────────────────────────────────────────────
 
     const tenantId = tenant.id
@@ -167,7 +165,7 @@ export async function POST(req: NextRequest) {
       .returning({ documentQuotaUsed: tenants.documentQuotaUsed })
 
     if (!quota) {
-      console.log('[save] quota check failed — PLAN_LIMIT_REACHED. tenantId:', tenantId, 'limit:', FREE_LIMIT)
+      console.log('[save] quota check failed — PLAN_LIMIT_REACHED')
       return new Response(
         JSON.stringify({
           error: `Free plan limit reached (${FREE_LIMIT} documents max)`,
@@ -180,8 +178,6 @@ export async function POST(req: NextRequest) {
         },
       )
     }
-
-    console.log('[save] quota claimed — new quotaUsed:', quota.documentQuotaUsed, '— inserting document')
 
     const [doc] = await db
       .insert(documents)
@@ -222,8 +218,6 @@ export async function POST(req: NextRequest) {
         status: 'draft',
       },
     })
-
-    console.log('[save] success — docId:', doc.id)
 
     return new Response(JSON.stringify({ success: true, id: doc.id }), {
       headers: { 'Content-Type': 'application/json' },
