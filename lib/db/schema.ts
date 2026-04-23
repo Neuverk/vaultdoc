@@ -32,6 +32,9 @@ export const users = pgTable('users', {
   role: text('role').notNull().default('author'), // superadmin | admin | manager | author | viewer
   department: text('department'),
   isActive: boolean('is_active').default(true),
+  blocked: boolean('blocked').default(false),
+  internalNote: text('internal_note'),
+  lastActiveAt: timestamp('last_active_at'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 })
 
@@ -80,6 +83,7 @@ export const betaRequests = pgTable('beta_requests', {
   name: text('name').notNull(),
   email: text('email').notNull().unique(),
   company: text('company').notNull(),
+  position: text('position'), // job title / role
   useCase: text('use_case'),
   status: text('status').notNull().default('pending'), // pending | approved | rejected
   createdAt: timestamp('created_at').defaultNow().notNull(),
@@ -91,6 +95,19 @@ export const betaRequests = pgTable('beta_requests', {
 export const stripeEvents = pgTable('stripe_events', {
   id: text('id').primaryKey(), // Stripe event ID e.g. evt_...
   processedAt: timestamp('processed_at').defaultNow().notNull(),
+})
+
+// ─── ADMIN ACTIVITY LOG ───────────────────────────────────
+export const adminActivityLogs = pgTable('admin_activity_logs', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  action: text('action').notNull(), // beta_approved | beta_rejected | plan_updated | user_blocked | user_unblocked | note_added | invite_sent
+  targetType: text('target_type').notNull(), // beta_request | user | tenant | document
+  targetId: text('target_id'),
+  targetEmail: text('target_email'),
+  adminEmail: text('admin_email'),
+  note: text('note'),
+  metadata: text('metadata'), // JSON string
+  createdAt: timestamp('created_at').defaultNow().notNull(),
 })
 
 // ─── AUDIT LOG ────────────────────────────────────────────

@@ -14,7 +14,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid request body.' }, { status: 400 })
   }
 
-  const { name, email, company, useCase } = body as Record<string, string>
+  const { name, email, company, position, useCase } = body as Record<string, string>
 
   if (!name?.trim() || !email?.trim() || !company?.trim()) {
     return NextResponse.json(
@@ -41,6 +41,7 @@ export async function POST(req: NextRequest) {
       name: name.trim(),
       email: emailLower,
       company: company.trim(),
+      position: position?.trim() || null,
       useCase: useCase?.trim() || null,
       status: 'pending',
     })
@@ -61,6 +62,7 @@ export async function POST(req: NextRequest) {
           <tr><td style="padding:8px 0;font-weight:600;color:#111">Name</td><td style="padding:8px 0;color:#374151">${name.trim()}</td></tr>
           <tr><td style="padding:8px 0;font-weight:600;color:#111">Email</td><td style="padding:8px 0;color:#374151">${emailLower}</td></tr>
           <tr><td style="padding:8px 0;font-weight:600;color:#111">Company</td><td style="padding:8px 0;color:#374151">${company.trim()}</td></tr>
+          ${position?.trim() ? `<tr><td style="padding:8px 0;font-weight:600;color:#111">Position</td><td style="padding:8px 0;color:#374151">${position.trim()}</td></tr>` : ''}
           ${useCase?.trim() ? `<tr><td style="padding:8px 0;font-weight:600;color:#111;vertical-align:top">Use case</td><td style="padding:8px 0;color:#374151">${useCase.trim()}</td></tr>` : ''}
         </table>
         <p style="margin-top:16px"><a href="${process.env.NEXT_PUBLIC_APP_URL}/dashboard/admin/beta-requests">Review in admin panel →</a></p>

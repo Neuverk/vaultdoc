@@ -5,6 +5,8 @@ import { betaRequests, tenants } from '@/lib/db/schema'
 import { eq } from 'drizzle-orm'
 import { isPlatformAdmin } from '@/lib/admin'
 import { resend, FROM_EMAIL } from '@/lib/resend'
+import { logAdminActivity } from '@/lib/admin-activity'
+import { revalidatePath } from 'next/cache'
 
 const SIGNUP_URL =
   process.env.NEXT_PUBLIC_APP_URL
@@ -23,10 +25,11 @@ export async function PATCH(
   }
 
   const clerkUser = await currentUser()
-  const email = clerkUser?.emailAddresses[0]?.emailAddress ?? null
-  if (!isPlatformAdmin(email)) {
+  const adminEmail = clerkUser?.emailAddresses[0]?.emailAddress ?? null
+  if (!isPlatformAdmin(adminEmail)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
+  const email = adminEmail
 
   let body: unknown
   try {
@@ -64,6 +67,20 @@ export async function PATCH(
       .update(betaRequests)
       .set({ status: 'rejected', reviewedAt: new Date(), reviewNote: note ?? null })
       .where(eq(betaRequests.id, id))
+
+    await logAdminActivity({
+      action: 'beta_rejected',
+      targetType: 'beta_request',
+      targetId: id,
+      targetEmail: request.email,
+      adminEmail,
+      note: note ?? null,
+      metadata: { company: request.company },
+    })
+
+    revalidatePath('/dashboard/admin/beta-requests')
+    revalidatePath('/dashboard/admin/activity')
+    revalidatePath('/dashboard/admin')
 
     return NextResponse.json({ success: true })
   }
@@ -104,7 +121,22 @@ export async function PATCH(
     // Non-fatal — tenant is created, admin can resend manually
   }
 
-  // 4. Send welcome email
+  // 4. Log activity
+  await logAdminActivity({
+    action: 'beta_approved',
+    targetType: 'beta_request',
+    targetId: id,
+    targetEmail: request.email,
+    adminEmail,
+    note: note ?? null,
+    metadata: { company: request.company, name: request.name },
+  })
+
+  revalidatePath('/dashboard/admin/beta-requests')
+  revalidatePath('/dashboard/admin/activity')
+  revalidatePath('/dashboard/admin')
+
+  // 5. Send welcome email
   resend.emails
     .send({
       from: FROM_EMAIL,

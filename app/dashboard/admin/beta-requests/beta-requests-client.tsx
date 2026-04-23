@@ -8,20 +8,35 @@ type BetaRequest = {
   name: string
   email: string
   company: string
+  position: string | null
   useCase: string | null
   status: string
   createdAt: Date
+  reviewedAt: Date | null
+  reviewNote: string | null
 }
 
 type Filter = 'all' | 'pending' | 'approved' | 'rejected'
 
 export function BetaRequestsClient({ requests }: { requests: BetaRequest[] }) {
   const router = useRouter()
-  const [filter, setFilter] = useState<Filter>('all')
+  const [filter, setFilter] = useState<Filter>('pending')
+  const [search, setSearch] = useState('')
   const [loading, setLoading] = useState<Record<string, boolean>>({})
+  const [expandedId, setExpandedId] = useState<string | null>(null)
+  const [noteInputs, setNoteInputs] = useState<Record<string, string>>({})
 
-  const filtered =
-    filter === 'all' ? requests : requests.filter((r) => r.status === filter)
+  const filtered = requests
+    .filter((r) => (filter === 'all' ? true : r.status === filter))
+    .filter((r) => {
+      if (!search.trim()) return true
+      const q = search.toLowerCase()
+      return (
+        r.name.toLowerCase().includes(q) ||
+        r.email.toLowerCase().includes(q) ||
+        r.company.toLowerCase().includes(q)
+      )
+    })
 
   const counts = {
     all: requests.length,
@@ -31,18 +46,20 @@ export function BetaRequestsClient({ requests }: { requests: BetaRequest[] }) {
   }
 
   async function handleAction(id: string, action: 'approve' | 'reject') {
+    const note = noteInputs[id]?.trim() || undefined
     setLoading((l) => ({ ...l, [id]: true }))
     try {
       const res = await fetch(`/api/admin/beta-requests/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action }),
+        body: JSON.stringify({ action, note }),
       })
       if (!res.ok) {
         const data = await res.json().catch(() => ({}))
         alert((data as { error?: string }).error ?? 'Action failed.')
         return
       }
+      setExpandedId(null)
       router.refresh()
     } catch {
       alert('Something went wrong.')
@@ -53,80 +70,148 @@ export function BetaRequestsClient({ requests }: { requests: BetaRequest[] }) {
 
   return (
     <div className="space-y-4">
-      {/* Filter tabs */}
-      <div className="flex gap-1 rounded-xl border border-gray-200 bg-gray-50 p-1 w-fit">
-        {(['all', 'pending', 'approved', 'rejected'] as Filter[]).map((f) => (
-          <button
-            key={f}
-            onClick={() => setFilter(f)}
-            className={`rounded-lg px-4 py-1.5 text-sm font-medium transition ${
-              filter === f
-                ? 'bg-white text-gray-900 shadow-sm'
-                : 'text-gray-500 hover:text-gray-900'
-            }`}
-          >
-            {f.charAt(0).toUpperCase() + f.slice(1)}{' '}
-            <span className="ml-1 text-xs text-gray-400">{counts[f]}</span>
-          </button>
-        ))}
+      {/* Filter + Search bar */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex gap-1 rounded-xl border border-gray-200 bg-gray-50 p-1 w-fit">
+          {(['all', 'pending', 'approved', 'rejected'] as Filter[]).map((f) => (
+            <button
+              key={f}
+              onClick={() => setFilter(f)}
+              className={`rounded-lg px-3.5 py-1.5 text-sm font-medium transition ${
+                filter === f ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-900'
+              }`}
+            >
+              {f.charAt(0).toUpperCase() + f.slice(1)}{' '}
+              <span className="ml-1 text-xs text-gray-400">{counts[f]}</span>
+            </button>
+          ))}
+        </div>
+        <input
+          type="text"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search name, email, company…"
+          className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 placeholder-gray-400 outline-none focus:border-gray-300 focus:ring-2 focus:ring-gray-100 w-64"
+        />
       </div>
 
       {/* Table */}
-      <div className="rounded-3xl border border-gray-200 bg-white shadow-sm overflow-hidden">
+      <div className="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
+        {/* Table header */}
+        <div className="hidden lg:grid lg:grid-cols-[1fr_1fr_140px_120px_100px] gap-4 px-5 py-3 border-b border-gray-100 bg-gray-50">
+          <div className="text-[11px] font-semibold uppercase tracking-widest text-gray-400">Applicant</div>
+          <div className="text-[11px] font-semibold uppercase tracking-widest text-gray-400">Company / Role</div>
+          <div className="text-[11px] font-semibold uppercase tracking-widest text-gray-400">Submitted</div>
+          <div className="text-[11px] font-semibold uppercase tracking-widest text-gray-400">Status</div>
+          <div />
+        </div>
+
         {filtered.length === 0 ? (
-          <div className="px-6 py-12 text-center text-sm text-gray-500">
-            No {filter === 'all' ? '' : filter} requests.
+          <div className="px-6 py-12 text-center text-sm text-gray-400">
+            {search ? 'No results match your search.' : `No ${filter === 'all' ? '' : filter} requests.`}
           </div>
         ) : (
-          <div className="divide-y divide-gray-200">
-            {filtered.map((r) => (
-              <div
-                key={r.id}
-                className="flex flex-col gap-4 px-6 py-5 lg:flex-row lg:items-center lg:justify-between"
-              >
-                <div className="min-w-0 flex-1 space-y-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-sm font-semibold text-gray-900">
-                      {r.name}
-                    </span>
-                    <StatusBadge status={r.status} />
+          <div className="divide-y divide-gray-100">
+            {filtered.map((r) => {
+              const isExpanded = expandedId === r.id
+              return (
+                <div key={r.id}>
+                  <div className="grid items-center gap-4 px-5 py-4 lg:grid-cols-[1fr_1fr_140px_120px_100px]">
+                    {/* Applicant */}
+                    <div className="min-w-0">
+                      <div className="text-sm font-semibold text-gray-900 truncate">{r.name}</div>
+                      <div className="text-xs text-gray-500 truncate">{r.email}</div>
+                    </div>
+
+                    {/* Company / Role */}
+                    <div className="min-w-0">
+                      <div className="text-sm text-gray-800 truncate">{r.company}</div>
+                      {r.position && (
+                        <div className="text-xs text-gray-500 truncate">{r.position}</div>
+                      )}
+                    </div>
+
+                    {/* Submitted */}
+                    <div className="text-sm text-gray-600">
+                      {r.createdAt.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                    </div>
+
+                    {/* Status */}
+                    <div>
+                      <StatusBadge status={r.status} />
+                    </div>
+
+                    {/* Actions */}
+                    <div className="flex items-center gap-2 justify-end">
+                      <button
+                        onClick={() => setExpandedId(isExpanded ? null : r.id)}
+                        className="text-xs text-gray-400 hover:text-gray-700 transition"
+                      >
+                        {isExpanded ? 'Collapse' : 'Details'}
+                      </button>
+                    </div>
                   </div>
-                  <div className="text-sm text-gray-600">{r.email}</div>
-                  <div className="text-xs text-gray-500">{r.company}</div>
-                  {r.useCase && (
-                    <div className="max-w-sm truncate text-xs text-gray-400" title={r.useCase}>
-                      {r.useCase}
+
+                  {/* Expanded detail */}
+                  {isExpanded && (
+                    <div className="border-t border-gray-100 bg-gray-50 px-5 py-5 space-y-4">
+                      {r.useCase && (
+                        <div>
+                          <div className="text-[11px] font-semibold uppercase tracking-widest text-gray-400 mb-1">Use case</div>
+                          <p className="text-sm text-gray-700 leading-relaxed max-w-2xl">{r.useCase}</p>
+                        </div>
+                      )}
+
+                      {r.reviewNote && (
+                        <div>
+                          <div className="text-[11px] font-semibold uppercase tracking-widest text-gray-400 mb-1">Review note</div>
+                          <p className="text-sm text-gray-700">{r.reviewNote}</p>
+                        </div>
+                      )}
+
+                      {r.reviewedAt && (
+                        <div className="text-xs text-gray-400">
+                          Reviewed {r.reviewedAt.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                        </div>
+                      )}
+
+                      {r.status === 'pending' && (
+                        <div className="space-y-3">
+                          <div>
+                            <label className="text-[11px] font-semibold uppercase tracking-widest text-gray-400 block mb-1">
+                              Internal note (optional)
+                            </label>
+                            <textarea
+                              rows={2}
+                              value={noteInputs[r.id] ?? ''}
+                              onChange={(e) => setNoteInputs((n) => ({ ...n, [r.id]: e.target.value }))}
+                              placeholder="Add a note before approving or rejecting…"
+                              className="w-full max-w-md rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 placeholder-gray-400 outline-none focus:border-gray-300 focus:ring-2 focus:ring-gray-100"
+                            />
+                          </div>
+                          <div className="flex gap-2">
+                            <button
+                              disabled={loading[r.id]}
+                              onClick={() => handleAction(r.id, 'approve')}
+                              className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-100 disabled:opacity-50"
+                            >
+                              {loading[r.id] ? 'Processing…' : 'Approve & invite'}
+                            </button>
+                            <button
+                              disabled={loading[r.id]}
+                              onClick={() => handleAction(r.id, 'reject')}
+                              className="rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-600 transition hover:bg-gray-50 disabled:opacity-50"
+                            >
+                              Reject
+                            </button>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )}
-                  <div className="text-xs text-gray-400">
-                    {new Date(r.createdAt).toLocaleDateString('en-GB', {
-                      day: '2-digit',
-                      month: 'short',
-                      year: 'numeric',
-                    })}
-                  </div>
                 </div>
-
-                {r.status === 'pending' && (
-                  <div className="flex items-center gap-2 shrink-0">
-                    <button
-                      disabled={loading[r.id]}
-                      onClick={() => handleAction(r.id, 'approve')}
-                      className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-100 disabled:opacity-50"
-                    >
-                      Approve
-                    </button>
-                    <button
-                      disabled={loading[r.id]}
-                      onClick={() => handleAction(r.id, 'reject')}
-                      className="rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-xs font-semibold text-red-700 transition hover:bg-red-100 disabled:opacity-50"
-                    >
-                      Reject
-                    </button>
-                  </div>
-                )}
-              </div>
-            ))}
+              )
+            })}
           </div>
         )}
       </div>
@@ -135,17 +220,14 @@ export function BetaRequestsClient({ requests }: { requests: BetaRequest[] }) {
 }
 
 function StatusBadge({ status }: { status: string }) {
-  const styles =
+  const cls =
     status === 'approved'
-      ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+      ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
       : status === 'rejected'
-        ? 'border-red-200 bg-red-50 text-red-700'
-        : 'border-amber-200 bg-amber-50 text-amber-700'
-
+        ? 'bg-red-50 text-red-700 border-red-200'
+        : 'bg-amber-50 text-amber-700 border-amber-200'
   return (
-    <span
-      className={`inline-flex rounded-full border px-2.5 py-0.5 text-xs font-medium capitalize ${styles}`}
-    >
+    <span className={`inline-flex rounded-full border px-2.5 py-0.5 text-xs font-medium capitalize ${cls}`}>
       {status}
     </span>
   )

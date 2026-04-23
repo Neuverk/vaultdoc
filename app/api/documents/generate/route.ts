@@ -1,10 +1,13 @@
 import Anthropic from '@anthropic-ai/sdk'
 import { auth, currentUser } from '@clerk/nextjs/server'
 import { NextRequest } from 'next/server'
+import { eq } from 'drizzle-orm'
 
 import { bootstrapUser } from '@/lib/bootstrap-user'
 import { canCreateDocument } from '@/lib/plan-limits'
 import { checkRateLimit } from '@/lib/rate-limit'
+import { db } from '@/lib/db'
+import { users } from '@/lib/db/schema'
 
 export const maxDuration = 60
 
@@ -115,6 +118,14 @@ export async function POST(req: NextRequest) {
 
   if (!userId) {
     return jsonResponse({ error: 'Unauthorized' }, 401)
+  }
+
+  const dbUser = await db.query.users.findFirst({
+    where: eq(users.clerkId, userId),
+  })
+
+  if (dbUser?.blocked) {
+    return jsonResponse({ error: 'Account suspended.' }, 403)
   }
 
   const rateLimit = await checkRateLimit(
@@ -271,8 +282,7 @@ Important:
     if (!isValidGeneratedDocument(content)) {
       return jsonResponse(
         {
-          error:
-            'Generated document structure was invalid. Please try again.',
+          error: 'Generated document structure was invalid. Please try again.',
         },
         500,
         {

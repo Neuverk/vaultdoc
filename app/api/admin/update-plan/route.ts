@@ -5,6 +5,7 @@ import { tenants } from '@/lib/db/schema'
 import { eq } from 'drizzle-orm'
 import { isPlatformAdmin } from '@/lib/admin'
 import { createAuditLog } from '@/lib/audit'
+import { logAdminActivity } from '@/lib/admin-activity'
 import { revalidatePath } from 'next/cache'
 
 const ALLOWED_PLANS = ['free', 'starter', 'enterprise'] as const
@@ -96,8 +97,18 @@ export async function POST(req: NextRequest) {
       },
     })
 
+    await logAdminActivity({
+      action: 'plan_updated',
+      targetType: 'tenant',
+      targetId: tenantId,
+      adminEmail: email,
+      metadata: { from: tenant.plan, to: newPlan, tenantName: tenant.name },
+    })
+
     revalidatePath('/dashboard', 'layout')
     revalidatePath('/dashboard/admin')
+    revalidatePath('/dashboard/admin/billing')
+    revalidatePath('/dashboard/admin/activity')
     revalidatePath('/dashboard/library')
 
     return NextResponse.json({

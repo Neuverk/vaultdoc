@@ -1,210 +1,277 @@
-import { auth, currentUser } from '@clerk/nextjs/server'
 import { db } from '@/lib/db'
-import { tenants, users, documents } from '@/lib/db/schema'
-import { isPlatformAdmin } from '@/lib/admin'
-import { eq } from 'drizzle-orm'
-import { notFound } from 'next/navigation'
-import { AdminPlanChanger } from './plan-changer'
+import { tenants, users, documents, betaRequests } from '@/lib/db/schema'
+import { desc, eq, gte, ne, sql } from 'drizzle-orm'
+import Link from 'next/link'
 
-type TenantRow = {
-  id: string
-  name: string
-  slug: string
-  plan: string
-  email: string
-  docCount: number
-  createdAt: Date
-  stripeSubscriptionStatus: string | null
+export const dynamic = 'force-dynamic'
+
+function MetricCard({
+  label,
+  value,
+  sub,
+}: {
+  label: string
+  value: string | number
+  sub?: string
+}) {
+  return (
+    <div className="rounded-lg border border-gray-200 bg-white px-4 py-4">
+      <div className="text-2xl font-semibold tabular-nums tracking-tight text-gray-900">{value}</div>
+      <div className="mt-1 text-xs font-medium text-gray-500">{label}</div>
+      {sub && <div className="mt-0.5 text-[11px] text-gray-400">{sub}</div>}
+    </div>
+  )
 }
 
-export default async function AdminPage() {
-  const { userId } = await auth()
-  if (!userId) return notFound()
+export default async function AdminOverviewPage() {
+  const now = new Date()
+  const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
+  const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
 
-  const clerkUser = await currentUser()
-  const email = clerkUser?.emailAddresses?.[0]?.emailAddress ?? null
+  const [
+    [{ totalUsers }],
+    [{ totalTenants }],
+    [{ totalDocs }],
+    [{ paidTenants }],
+    [{ docs7d }],
+    [{ docs30d }],
+    betaStats,
+    recentUsers,
+    recentApprovedBeta,
+    recentDocs,
+  ] = await Promise.all([
+    db.select({ totalUsers: sql<number>`count(*)` }).from(users),
+    db.select({ totalTenants: sql<number>`count(*)` }).from(tenants),
+    db.select({ totalDocs: sql<number>`count(*)` }).from(documents),
+    db.select({ paidTenants: sql<number>`count(*)` }).from(tenants).where(ne(tenants.plan, 'free')),
+    db.select({ docs7d: sql<number>`count(*)` }).from(documents).where(gte(documents.createdAt, sevenDaysAgo)),
+    db.select({ docs30d: sql<number>`count(*)` }).from(documents).where(gte(documents.createdAt, thirtyDaysAgo)),
+    db.select({ status: betaRequests.status, count: sql<number>`count(*)` })
+      .from(betaRequests)
+      .groupBy(betaRequests.status),
+    db.select({
+      id: users.id,
+      email: users.email,
+      firstName: users.firstName,
+      lastName: users.lastName,
+      createdAt: users.createdAt,
+    })
+      .from(users)
+      .orderBy(desc(users.createdAt))
+      .limit(5),
+    db.select({
+      id: betaRequests.id,
+      name: betaRequests.name,
+      email: betaRequests.email,
+      company: betaRequests.company,
+      reviewedAt: betaRequests.reviewedAt,
+    })
+      .from(betaRequests)
+      .where(eq(betaRequests.status, 'approved'))
+      .orderBy(desc(betaRequests.reviewedAt))
+      .limit(5),
+    db.select({
+      id: documents.id,
+      title: documents.title,
+      type: documents.type,
+      createdAt: documents.createdAt,
+    })
+      .from(documents)
+      .orderBy(desc(documents.createdAt))
+      .limit(5),
+  ])
 
-  if (!isPlatformAdmin(email)) return notFound()
-
-  const allTenants = await db.query.tenants.findMany()
-
-  const data: TenantRow[] = await Promise.all(
-    allTenants.map(async (t) => {
-      const user = await db.query.users.findFirst({
-        where: eq(users.tenantId, t.id),
-      })
-
-      const docs = await db.query.documents.findMany({
-        where: eq(documents.tenantId, t.id),
-      })
-
-      return {
-        id: t.id,
-        name: t.name || 'Unnamed tenant',
-        slug: t.slug,
-        plan: t.plan,
-        email: user?.email ?? '—',
-        docCount: docs.length,
-        createdAt: t.createdAt,
-        stripeSubscriptionStatus: t.stripeSubscriptionStatus ?? null,
-      }
-    }),
-  )
-
-  const totalTenants = data.length
-  const totalDocuments = data.reduce((sum, tenant) => sum + tenant.docCount, 0)
-  const paidTenants = data.filter((tenant) => tenant.plan !== 'free').length
+  const betaMap = Object.fromEntries(betaStats.map((b) => [b.status, Number(b.count)]))
+  const pendingBeta = betaMap['pending'] ?? 0
+  const approvedBeta = betaMap['approved'] ?? 0
+  const rejectedBeta = betaMap['rejected'] ?? 0
+  const totalBeta = pendingBeta + approvedBeta + rejectedBeta
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="mx-auto max-w-7xl space-y-8 px-6 py-8">
-        <section className="rounded-3xl border border-gray-200 bg-white p-8 shadow-sm">
-          <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+    <div className="max-w-300">
+      {/* Page header */}
+      <div className="border-b border-gray-200 bg-white px-8 py-5">
+        <h1 className="text-[15px] font-semibold text-gray-900">Overview</h1>
+        <p className="mt-0.5 text-sm text-gray-500">
+          Platform health at a glance — users, documents, and beta requests.
+        </p>
+      </div>
+
+      <div className="px-8 py-6 space-y-8">
+        {/* Quick actions */}
+        <div className="flex flex-wrap gap-2">
+          {[
+            { href: '/dashboard/admin/beta-requests', label: 'Review beta requests' },
+            { href: '/dashboard/admin/users', label: 'View all users' },
+            { href: '/dashboard/admin/documents', label: 'Recent documents' },
+            { href: '/dashboard/admin/billing', label: 'Manage plans' },
+          ].map((a) => (
+            <Link
+              key={a.href}
+              href={a.href}
+              className="inline-flex items-center rounded-md border border-gray-200 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 transition hover:bg-gray-50 hover:border-gray-300"
+            >
+              {a.label}
+            </Link>
+          ))}
+        </div>
+
+        {/* Platform metrics */}
+        <div>
+          <SectionLabel>Platform</SectionLabel>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <MetricCard label="Total users" value={Number(totalUsers)} />
+            <MetricCard label="Organizations" value={Number(totalTenants)} />
+            <MetricCard
+              label="Paid orgs"
+              value={Number(paidTenants)}
+              sub={`${Number(totalTenants) - Number(paidTenants)} on free`}
+            />
+            <MetricCard label="Total documents" value={Number(totalDocs)} />
+          </div>
+        </div>
+
+        {/* Document activity */}
+        <div>
+          <SectionLabel>Document generation</SectionLabel>
+          <div className="grid grid-cols-3 gap-3">
+            <MetricCard label="Last 7 days" value={Number(docs7d)} />
+            <MetricCard label="Last 30 days" value={Number(docs30d)} />
+            <MetricCard label="All time" value={Number(totalDocs)} />
+          </div>
+        </div>
+
+        {/* Beta metrics */}
+        <div>
+          <SectionLabel>Beta requests</SectionLabel>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <MetricCard label="Total" value={totalBeta} />
+            <MetricCard label="Pending" value={pendingBeta} />
+            <MetricCard label="Approved" value={approvedBeta} />
+            <MetricCard label="Rejected" value={rejectedBeta} />
+          </div>
+        </div>
+
+        {/* Recent activity panels */}
+        <div>
+          <SectionLabel>Recent activity</SectionLabel>
+          <div className="grid gap-4 lg:grid-cols-3">
+            <RecentPanel title="Signups" href="/dashboard/admin/users">
+              {recentUsers.length === 0 ? (
+                <EmptyRow>No users yet.</EmptyRow>
+              ) : (
+                recentUsers.map((u) => (
+                  <div key={u.id} className="flex items-center justify-between px-4 py-2.5 hover:bg-gray-50">
+                    <div className="min-w-0">
+                      <div className="text-[13px] font-medium text-gray-900 truncate">
+                        {u.firstName || u.lastName
+                          ? `${u.firstName ?? ''} ${u.lastName ?? ''}`.trim()
+                          : u.email}
+                      </div>
+                      <div className="text-xs text-gray-400 truncate">{u.email}</div>
+                    </div>
+                    <div className="shrink-0 text-[11px] text-gray-400 ml-3">
+                      {u.createdAt.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}
+                    </div>
+                  </div>
+                ))
+              )}
+            </RecentPanel>
+
+            <RecentPanel title="Approved beta" href="/dashboard/admin/beta-requests">
+              {recentApprovedBeta.length === 0 ? (
+                <EmptyRow>None approved yet.</EmptyRow>
+              ) : (
+                recentApprovedBeta.map((r) => (
+                  <div key={r.id} className="flex items-center justify-between px-4 py-2.5 hover:bg-gray-50">
+                    <div className="min-w-0">
+                      <div className="text-[13px] font-medium text-gray-900 truncate">{r.name}</div>
+                      <div className="text-xs text-gray-400 truncate">{r.company}</div>
+                    </div>
+                    <div className="shrink-0 text-[11px] text-gray-400 ml-3">
+                      {r.reviewedAt
+                        ? r.reviewedAt.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })
+                        : '—'}
+                    </div>
+                  </div>
+                ))
+              )}
+            </RecentPanel>
+
+            <RecentPanel title="Documents" href="/dashboard/admin/documents">
+              {recentDocs.length === 0 ? (
+                <EmptyRow>No documents yet.</EmptyRow>
+              ) : (
+                recentDocs.map((d) => (
+                  <div key={d.id} className="flex items-center justify-between px-4 py-2.5 hover:bg-gray-50">
+                    <div className="min-w-0">
+                      <div className="text-[13px] font-medium text-gray-900 truncate">{d.title}</div>
+                      <div className="text-xs text-gray-400">{d.type}</div>
+                    </div>
+                    <div className="shrink-0 text-[11px] text-gray-400 ml-3">
+                      {d.createdAt.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}
+                    </div>
+                  </div>
+                ))
+              )}
+            </RecentPanel>
+          </div>
+        </div>
+
+        {/* Pending beta alert */}
+        {pendingBeta > 0 && (
+          <div className="flex items-center justify-between gap-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3">
             <div>
-              <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-gray-200 bg-gray-50 px-3 py-1.5 text-xs font-medium text-gray-700">
-                <span className="h-1.5 w-1.5 rounded-full bg-gray-400" />
-                Internal admin
-              </div>
-
-              <h1 className="text-3xl font-semibold tracking-tight text-gray-900">
-                Admin Panel
-              </h1>
-
-              <p className="mt-2 max-w-2xl text-sm leading-6 text-gray-700">
-                Manage tenants, inspect workspace usage, and manually adjust plans
-                for internal testing and support.
-              </p>
+              <span className="text-sm font-medium text-amber-900">
+                {pendingBeta} pending beta {pendingBeta === 1 ? 'request' : 'requests'}
+              </span>
+              <span className="ml-2 text-sm text-amber-700">awaiting review.</span>
             </div>
-
-            <div className="rounded-2xl border border-gray-200 bg-gray-50 px-5 py-4">
-              <div className="text-xs font-medium uppercase tracking-[0.12em] text-gray-600">
-                Signed in as
-              </div>
-              <div className="mt-1 text-sm font-semibold text-gray-900">
-                {email ?? '—'}
-              </div>
-            </div>
+            <Link
+              href="/dashboard/admin/beta-requests"
+              className="shrink-0 rounded-md border border-amber-300 bg-white px-3 py-1.5 text-sm font-medium text-amber-800 hover:bg-amber-50 transition"
+            >
+              Review →
+            </Link>
           </div>
-        </section>
-
-        <section className="grid gap-4 md:grid-cols-3">
-          <SummaryCard label="Tenants" value={String(totalTenants)} />
-          <SummaryCard label="Documents" value={String(totalDocuments)} />
-          <SummaryCard label="Paid tenants" value={String(paidTenants)} />
-        </section>
-
-        <section className="rounded-3xl border border-gray-200 bg-white shadow-sm">
-          <div className="border-b border-gray-200 px-6 py-5">
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <h2 className="text-lg font-semibold text-gray-900">
-                  Tenant overview
-                </h2>
-                <p className="mt-1 text-sm text-gray-700">
-                  Review workspace ownership, document volume, and plan assignment.
-                </p>
-              </div>
-
-              <div className="rounded-full border border-gray-200 bg-gray-50 px-3 py-1 text-xs font-medium text-gray-700">
-                {totalTenants} tenant{totalTenants !== 1 ? 's' : ''}
-              </div>
-            </div>
-          </div>
-
-          <div className="divide-y divide-gray-200">
-            {data.map((tenant) => (
-              <div
-                key={tenant.id}
-                className="flex flex-col gap-5 px-6 py-5 lg:flex-row lg:items-center lg:justify-between"
-              >
-                <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <h3 className="text-base font-semibold text-gray-900">
-                      {tenant.name}
-                    </h3>
-                    <PlanBadge plan={tenant.plan} />
-                    {tenant.stripeSubscriptionStatus && (
-                      <span className="inline-flex rounded-full border border-gray-200 bg-gray-50 px-2.5 py-1 text-xs font-medium capitalize text-gray-700">
-                        {tenant.stripeSubscriptionStatus}
-                      </span>
-                    )}
-                  </div>
-
-                  <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                    <InfoItem label="Slug" value={tenant.slug} />
-                    <InfoItem label="Primary email" value={tenant.email} />
-                    <InfoItem
-                      label="Documents"
-                      value={`${tenant.docCount} document${tenant.docCount !== 1 ? 's' : ''}`}
-                    />
-                    <InfoItem
-                      label="Created"
-                      value={tenant.createdAt.toLocaleDateString('en-GB', {
-                        day: '2-digit',
-                        month: 'short',
-                        year: 'numeric',
-                      })}
-                    />
-                  </div>
-                </div>
-
-                <div className="w-full lg:w-auto">
-                  <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4">
-                    <p className="mb-3 text-xs font-medium uppercase tracking-[0.12em] text-gray-600">
-                      Plan control
-                    </p>
-                    <AdminPlanChanger tenantId={tenant.id} currentPlan={tenant.plan} />
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
+        )}
       </div>
     </div>
   )
 }
 
-function SummaryCard({ label, value }: { label: string; value: string }) {
+function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
-    <div className="rounded-2xl border border-gray-200 bg-white px-6 py-6 shadow-sm">
-      <div className="text-xs font-medium uppercase tracking-[0.12em] text-gray-600">
-        {label}
-      </div>
-      <div className="mt-3 text-3xl font-semibold tracking-tight text-gray-900">
-        {value}
-      </div>
+    <div className="mb-3 text-[11px] font-semibold uppercase tracking-widest text-gray-400">
+      {children}
     </div>
   )
 }
 
-function InfoItem({ label, value }: { label: string; value: string }) {
+function RecentPanel({
+  title,
+  href,
+  children,
+}: {
+  title: string
+  href: string
+  children: React.ReactNode
+}) {
   return (
-    <div className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3">
-      <div className="text-[11px] font-medium uppercase tracking-[0.12em] text-gray-600">
-        {label}
+    <div className="overflow-hidden rounded-lg border border-gray-200 bg-white">
+      <div className="flex items-center justify-between border-b border-gray-100 px-4 py-3">
+        <span className="text-[13px] font-semibold text-gray-900">{title}</span>
+        <Link href={href} className="text-[11px] font-medium text-gray-400 hover:text-gray-700 transition">
+          View all →
+        </Link>
       </div>
-      <div className="mt-1 wrap-break-word text-sm font-medium text-gray-900">
-        {value}
-      </div>
+      <div className="divide-y divide-gray-100">{children}</div>
     </div>
   )
 }
 
-function PlanBadge({ plan }: { plan: string }) {
-  const styles =
-    plan === 'enterprise'
-      ? 'border-violet-200 bg-violet-50 text-violet-700'
-      : plan === 'starter'
-        ? 'border-blue-200 bg-blue-50 text-blue-700'
-        : 'border-gray-200 bg-gray-50 text-gray-600'
-
+function EmptyRow({ children }: { children: React.ReactNode }) {
   return (
-    <span
-      className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-medium capitalize ${styles}`}
-    >
-      {plan}
-    </span>
+    <div className="px-4 py-6 text-center text-sm text-gray-400">{children}</div>
   )
 }
-

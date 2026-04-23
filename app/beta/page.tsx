@@ -8,6 +8,7 @@ export default function BetaPage() {
     name: '',
     email: '',
     company: '',
+    position: '',
     useCase: '',
   })
   const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle')
@@ -169,6 +170,20 @@ export default function BetaPage() {
                         value={form.company}
                         onChange={(e) => setForm((f) => ({ ...f, company: e.target.value }))}
                         placeholder="Acme GmbH"
+                        className="w-full rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-900 placeholder-gray-400 outline-none transition focus:border-gray-400 focus:ring-2 focus:ring-gray-100"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="mb-1.5 block text-sm font-medium text-gray-700">
+                        Job title{' '}
+                        <span className="font-normal text-gray-500">(optional)</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={form.position}
+                        onChange={(e) => setForm((f) => ({ ...f, position: e.target.value }))}
+                        placeholder="CISO, Head of IT, Compliance Manager…"
                         className="w-full rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-900 placeholder-gray-400 outline-none transition focus:border-gray-400 focus:ring-2 focus:ring-gray-100"
                       />
                     </div>
