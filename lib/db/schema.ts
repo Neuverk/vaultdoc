@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, uuid, boolean, integer } from 'drizzle-orm/pg-core'
+import { pgTable, text, timestamp, uuid, boolean, integer, index } from 'drizzle-orm/pg-core'
 
 // ─── TENANTS (companies using Vaultdoc) ───────────────────
 export const tenants = pgTable('tenants', {
@@ -19,12 +19,14 @@ export const tenants = pgTable('tenants', {
 
   // Lifetime quota counter — never decremented on delete
   documentQuotaUsed: integer('document_quota_used').notNull().default(0),
-})
+}, (table) => [
+  index('tenants_stripe_customer_id_idx').on(table.stripeCustomerId),
+])
 
 // ─── USERS ────────────────────────────────────────────────
 export const users = pgTable('users', {
   id: uuid('id').defaultRandom().primaryKey(),
-  clerkId: text('clerk_id').notNull().unique(),
+  clerkId: text('clerk_id').notNull().unique(), // unique() already creates an index
   tenantId: uuid('tenant_id').references(() => tenants.id),
   email: text('email').notNull(),
   firstName: text('first_name'),
@@ -36,7 +38,10 @@ export const users = pgTable('users', {
   internalNote: text('internal_note'),
   lastActiveAt: timestamp('last_active_at'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
-})
+}, (table) => [
+  index('users_email_idx').on(table.email),
+  index('users_tenant_id_idx').on(table.tenantId),
+])
 
 // ─── DOCUMENTS ────────────────────────────────────────────
 export const documents = pgTable('documents', {
@@ -62,7 +67,10 @@ export const documents = pgTable('documents', {
   publishedToKb: boolean('published_to_kb').default(false),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
-})
+}, (table) => [
+  index('documents_tenant_id_idx').on(table.tenantId),
+  index('documents_created_by_idx').on(table.createdBy),
+])
 
 // ─── APPROVALS ────────────────────────────────────────────
 export const approvals = pgTable('approvals', {

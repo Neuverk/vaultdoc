@@ -6,6 +6,7 @@ import { eq } from 'drizzle-orm'
 import { bootstrapUser } from '@/lib/bootstrap-user'
 import { canCreateDocument } from '@/lib/plan-limits'
 import { checkRateLimit } from '@/lib/rate-limit'
+import { sanitizeField, sanitizeStringArray } from '@/lib/sanitize'
 import { db } from '@/lib/db'
 import { users } from '@/lib/db/schema'
 
@@ -15,8 +16,6 @@ const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY!,
 })
 
-const MAX_FIELD_LENGTH = 2000
-const MAX_ARRAY_ITEMS = 20
 const MAX_MESSAGES = 12
 const GENERATE_LIMIT = 10
 const GENERATE_WINDOW_MS = 60 * 60 * 1000
@@ -36,46 +35,6 @@ function jsonResponse(body: unknown, status = 200, extraHeaders?: HeadersInit) {
   })
 }
 
-function stripHtml(input: string): string {
-  return input.replace(/<[^>]*>/g, ' ')
-}
-
-function removePromptInjectionPatterns(input: string): string {
-  return input
-    .replace(/ignore\s+(all|any|previous|prior)\s+instructions?/gi, ' ')
-    .replace(/disregard\s+(all|any|previous|prior)\s+instructions?/gi, ' ')
-    .replace(/forget\s+(all|any|previous|prior)\s+instructions?/gi, ' ')
-    .replace(/system\s+prompt/gi, ' ')
-    .replace(/developer\s+message/gi, ' ')
-    .replace(/assistant\s+instructions?/gi, ' ')
-    .replace(/reveal\s+(your|the)\s+(prompt|instructions?|system message)/gi, ' ')
-    .replace(/act\s+as\s+/gi, ' ')
-    .replace(/jailbreak/gi, ' ')
-    .replace(/```[\s\S]*?```/g, ' ')
-}
-
-function normalizeWhitespace(input: string): string {
-  return input.replace(/\s+/g, ' ').trim()
-}
-
-function sanitizeField(value: unknown): string {
-  if (typeof value !== 'string') return ''
-
-  const stripped = stripHtml(value)
-  const cleaned = removePromptInjectionPatterns(stripped)
-  const normalized = normalizeWhitespace(cleaned)
-
-  return normalized.slice(0, MAX_FIELD_LENGTH)
-}
-
-function sanitizeStringArray(value: unknown): string[] {
-  if (!Array.isArray(value)) return []
-
-  return value
-    .map((item) => sanitizeField(item))
-    .filter(Boolean)
-    .slice(0, MAX_ARRAY_ITEMS)
-}
 
 function sanitizeMessages(value: unknown): ChatMessage[] {
   if (!Array.isArray(value)) return []

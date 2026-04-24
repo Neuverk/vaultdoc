@@ -1,175 +1,94 @@
 import { auth, currentUser } from '@clerk/nextjs/server'
 import { NextRequest } from 'next/server'
 import { db } from '@/lib/db'
-import { documents, users, tenants, betaRequests } from '@/lib/db/schema'
+import { documents, tenants } from '@/lib/db/schema'
 import { eq, sql, and, or, ne, lt } from 'drizzle-orm'
 import { createAuditLog } from '@/lib/audit'
+import { bootstrapUser } from '@/lib/bootstrap-user'
+import { sanitizeField, sanitizeStringArray } from '@/lib/sanitize'
 import { PLANS } from '@/lib/plans'
+
+const MAX_CONTENT_LENGTH = 100_000
+
+function jsonResponse(body: unknown, status = 200): Response {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { 'Content-Type': 'application/json' },
+  })
+}
 
 export async function POST(req: NextRequest) {
   const { userId } = await auth()
   if (!userId) {
-    return new Response('Unauthorized', { status: 401 })
+    return jsonResponse({ error: 'Unauthorized' }, 401)
   }
 
   const clerkUser = await currentUser()
   if (!clerkUser) {
-    return new Response('Unauthorized', { status: 401 })
+    return jsonResponse({ error: 'Unauthorized' }, 401)
   }
 
-  const body = await req.json()
-  const {
-    title,
-    type,
-    department,
-    frameworks,
-    content,
-    scope,
-    purpose,
-    tools,
-    tone,
-    language,
-    confidentiality,
-  } = body
+  let body: unknown
+  try {
+    body = await req.json()
+  } catch {
+    return jsonResponse({ error: 'Invalid request body.' }, 400)
+  }
+
+  const raw = body as Record<string, unknown>
+
+  const title = sanitizeField(raw.title)
+  const type = sanitizeField(raw.type)
+  const department = sanitizeField(raw.department)
+  const frameworks = sanitizeStringArray(raw.frameworks)
+  const content =
+    typeof raw.content === 'string' ? raw.content.trim().slice(0, MAX_CONTENT_LENGTH) : ''
+  const scope = sanitizeField(raw.scope)
+  const purpose = sanitizeField(raw.purpose)
+  const tools = sanitizeField(raw.tools)
+  const tone = sanitizeField(raw.tone)
+  const language = sanitizeField(raw.language)
+  const confidentiality = sanitizeField(raw.confidentiality)
+
+  if (!title) return jsonResponse({ error: 'Document title is required.' }, 400)
+  if (!type) return jsonResponse({ error: 'Document type is required.' }, 400)
+  if (!department) return jsonResponse({ error: 'Department is required.' }, 400)
+  if (!content) return jsonResponse({ error: 'Document content is required.' }, 400)
 
   try {
-    const clerkEmail = clerkUser.emailAddresses[0]?.emailAddress || ''
+    const clerkEmail = clerkUser.emailAddresses[0]?.emailAddress ?? ''
 
-    // ── User + tenant resolution ──────────────────────────────────────────────
-    //
-    // Priority:
-    //  1. Find user by current Clerk userId (fast path, normal case)
-    //  2. Find user by email (Clerk userId changed for same account)
-    //     a. Exactly one match → reuse that account, update clerkId
-    //     b. Multiple matches → fail safely, do NOT create another tenant
-    //     c. No match → create fresh tenant + user
-    //
-    // Tenant is always derived from the resolved user, never looked up by slug
-    // except when creating a brand-new record.
-
-    let user = await db.query.users.findFirst({
-      where: eq(users.clerkId, userId),
+    const bootstrapped = await bootstrapUser({
+      clerkUserId: userId,
+      email: clerkEmail,
+      firstName: clerkUser.firstName,
+      lastName: clerkUser.lastName,
     })
 
-    // Resolve the tenant from the user we already found (may be null if user
-    // is new or their tenant row was somehow dropped).
-    let tenant = user?.tenantId
-      ? (await db.query.tenants.findFirst({
-          where: eq(tenants.id, user.tenantId),
-        })) ?? null
-      : null
-
-    if (!user) {
-      // clerkId not in DB — check whether this email already has an account
-      const byEmail = clerkEmail
-        ? await db.query.users.findMany({ where: eq(users.email, clerkEmail) })
-        : []
-
-      if (byEmail.length > 1) {
-        // Multiple users share this email — auto-merge is unsafe
-        console.error('[save] multiple users found for same email — cannot auto-merge')
-        return new Response(
-          JSON.stringify({ error: 'Account conflict detected. Please contact support.' }),
-          { status: 409, headers: { 'Content-Type': 'application/json' } },
-        )
-      }
-
-      if (byEmail.length === 1) {
-        // Exactly one existing user → reuse their account; update clerkId
-        const existing = byEmail[0]
-        console.log('[save] clerkId reconciled via email match')
-        await db
-          .update(users)
-          .set({
-            clerkId: userId,
-            email: clerkEmail || existing.email,
-            firstName: clerkUser.firstName || existing.firstName || '',
-            lastName: clerkUser.lastName || existing.lastName || '',
-          })
-          .where(eq(users.id, existing.id))
-
-        user = { ...existing, clerkId: userId }
-        tenant = existing.tenantId
-          ? (await db.query.tenants.findFirst({
-              where: eq(tenants.id, existing.tenantId),
-            })) ?? null
-          : null
-      }
-      // else: byEmail.length === 0 → fall through; new user created below
+    if (!bootstrapped) {
+      return jsonResponse(
+        { error: 'Account conflict detected. Please contact support.' },
+        409,
+      )
     }
 
-    // If tenant is still null (new account or orphaned user), create one.
-    // Use the approved beta request company name if available.
-    if (!tenant) {
-      let tenantName = `${clerkUser.firstName || 'My'} Organisation`
-      if (clerkEmail) {
-        const approvedRequest = await db.query.betaRequests.findFirst({
-          where: and(
-            eq(betaRequests.email, clerkEmail.toLowerCase()),
-            eq(betaRequests.status, 'approved'),
-          ),
-        })
-        if (approvedRequest?.company) {
-          tenantName = approvedRequest.company
-        }
-      }
+    const { user, tenant } = bootstrapped
 
-      const [newTenant] = await db
-        .insert(tenants)
-        .values({
-          name: tenantName,
-          slug: `user-${userId}`,
-          plan: 'free',
-        })
-        .returning()
-
-      tenant = newTenant
+    if (user.blocked) {
+      return jsonResponse({ error: 'Account suspended.' }, 403)
     }
 
-    // If user is still null (no clerkId match, no email match), create one
-    if (!user) {
-      const [newUser] = await db
-        .insert(users)
-        .values({
-          clerkId: userId,
-          tenantId: tenant.id,
-          email: clerkEmail,
-          firstName: clerkUser.firstName || '',
-          lastName: clerkUser.lastName || '',
-          role: 'admin',
-        })
-        .returning()
-
-      user = newUser
-    } else if (user.tenantId !== tenant.id) {
-      // User exists but their tenantId doesn't match the resolved tenant
-      // (can happen when a new tenant was just created for an orphaned user)
-      await db
-        .update(users)
-        .set({ tenantId: tenant.id })
-        .where(eq(users.id, user.id))
-
-      user = { ...user, tenantId: tenant.id }
-    }
-
-    // ── Quota + document insert ───────────────────────────────────────────────
-
-    const tenantId = tenant.id
-    const dbUserId = user.id
+    // ── Quota enforcement ─────────────────────────────────────────────────────
+    // Atomically claim a quota slot. Returns 0 rows if the free-plan limit is
+    // already reached; returns 1 row otherwise (race-safe via conditional UPDATE).
     const FREE_LIMIT = PLANS.free.maxDocuments
 
-    // Atomically claim a quota slot via a conditional UPDATE (race-safe at the
-    // Postgres level — single statement with row-level locking). Returns 0 rows
-    // if the free-plan limit is already reached; returns 1 row otherwise.
-    //
-    // Note: drizzle-orm/neon-http (HTTP driver) does not support db.transaction().
-    // The conditional UPDATE alone is sufficient for atomic quota enforcement.
     const [quota] = await db
       .update(tenants)
       .set({ documentQuotaUsed: sql`${tenants.documentQuotaUsed} + 1` })
       .where(
         and(
-          eq(tenants.id, tenantId),
+          eq(tenants.id, tenant.id),
           or(
             ne(tenants.plan, 'free'),
             lt(tenants.documentQuotaUsed, FREE_LIMIT),
@@ -179,25 +98,21 @@ export async function POST(req: NextRequest) {
       .returning({ documentQuotaUsed: tenants.documentQuotaUsed })
 
     if (!quota) {
-      console.log('[save] quota check failed — PLAN_LIMIT_REACHED')
-      return new Response(
-        JSON.stringify({
+      return jsonResponse(
+        {
           error: `Free plan limit reached (${FREE_LIMIT} documents max)`,
           code: 'PLAN_LIMIT_REACHED',
           limit: FREE_LIMIT,
-        }),
-        {
-          status: 403,
-          headers: { 'Content-Type': 'application/json' },
         },
+        403,
       )
     }
 
     const [doc] = await db
       .insert(documents)
       .values({
-        tenantId,
-        createdBy: dbUserId,
+        tenantId: tenant.id,
+        createdBy: user.id,
         title,
         type,
         department,
@@ -213,8 +128,8 @@ export async function POST(req: NextRequest) {
       .returning()
 
     await createAuditLog({
-      tenantId,
-      userId: dbUserId,
+      tenantId: tenant.id,
+      userId: user.id,
       action: 'document_created',
       resourceType: 'document',
       resourceId: doc.id,
@@ -233,17 +148,9 @@ export async function POST(req: NextRequest) {
       },
     })
 
-    return new Response(JSON.stringify({ success: true, id: doc.id }), {
-      headers: { 'Content-Type': 'application/json' },
-    })
+    return jsonResponse({ success: true, id: doc.id })
   } catch (error) {
     console.error('[save] unexpected error:', error)
-    return new Response(
-      JSON.stringify({ error: 'Failed to save document.' }),
-      {
-        status: 500,
-        headers: { 'Content-Type': 'application/json' },
-      },
-    )
+    return jsonResponse({ error: 'Failed to save document.' }, 500)
   }
 }
