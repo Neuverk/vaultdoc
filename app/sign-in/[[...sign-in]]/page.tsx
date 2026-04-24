@@ -5,8 +5,6 @@ export default function SignInPage() {
     <div className="min-h-screen bg-gray-50">
       <div className="mx-auto flex min-h-screen max-w-7xl items-center justify-center px-6 py-12">
         <div className="grid w-full max-w-6xl gap-10 lg:grid-cols-2 lg:items-center">
-          
-          {/* Left content */}
           <div className="hidden lg:block">
             <div className="mb-6 inline-flex items-center rounded-full border border-gray-200 bg-white px-3 py-1 text-xs font-medium text-gray-600 shadow-sm">
               VaultDoc workspace
@@ -42,12 +40,14 @@ export default function SignInPage() {
             </div>
           </div>
 
-          {/* Clerk card */}
           <div className="flex justify-center">
             <div className="w-full max-w-md rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
               <SignIn
-                fallbackRedirectUrl="/dashboard"
+                routing="path"
+                path="/sign-in"
                 signUpUrl="/sign-up"
+                fallbackRedirectUrl="/dashboard"
+                forceRedirectUrl="/dashboard"
               />
             </div>
           </div>
