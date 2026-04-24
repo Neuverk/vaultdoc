@@ -1,6 +1,6 @@
 import { db } from '@/lib/db'
-import { users, tenants } from '@/lib/db/schema'
-import { eq } from 'drizzle-orm'
+import { users, tenants, betaRequests } from '@/lib/db/schema'
+import { and, eq } from 'drizzle-orm'
 
 type UserRow = typeof users.$inferSelect
 type TenantRow = typeof tenants.$inferSelect
@@ -89,10 +89,25 @@ export async function bootstrapUser({
   }
 
   if (!tenant) {
+    // Use the company name from an approved beta request if one exists for this
+    // email — this is the normal path for beta users accepting their invitation.
+    let tenantName = `${firstName || 'My'} Organisation`
+    if (email) {
+      const approvedRequest = await db.query.betaRequests.findFirst({
+        where: and(
+          eq(betaRequests.email, email.toLowerCase()),
+          eq(betaRequests.status, 'approved'),
+        ),
+      })
+      if (approvedRequest?.company) {
+        tenantName = approvedRequest.company
+      }
+    }
+
     const [newTenant] = await db
       .insert(tenants)
       .values({
-        name: `${firstName || 'My'} Organisation`,
+        name: tenantName,
         slug: `user-${clerkUserId}`,
         plan: 'free',
       })

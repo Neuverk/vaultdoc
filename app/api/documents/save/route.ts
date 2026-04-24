@@ -1,7 +1,7 @@
 import { auth, currentUser } from '@clerk/nextjs/server'
 import { NextRequest } from 'next/server'
 import { db } from '@/lib/db'
-import { documents, users, tenants } from '@/lib/db/schema'
+import { documents, users, tenants, betaRequests } from '@/lib/db/schema'
 import { eq, sql, and, or, ne, lt } from 'drizzle-orm'
 import { createAuditLog } from '@/lib/audit'
 import { PLANS } from '@/lib/plans'
@@ -98,12 +98,26 @@ export async function POST(req: NextRequest) {
       // else: byEmail.length === 0 → fall through; new user created below
     }
 
-    // If tenant is still null (new account or orphaned user), create one
+    // If tenant is still null (new account or orphaned user), create one.
+    // Use the approved beta request company name if available.
     if (!tenant) {
+      let tenantName = `${clerkUser.firstName || 'My'} Organisation`
+      if (clerkEmail) {
+        const approvedRequest = await db.query.betaRequests.findFirst({
+          where: and(
+            eq(betaRequests.email, clerkEmail.toLowerCase()),
+            eq(betaRequests.status, 'approved'),
+          ),
+        })
+        if (approvedRequest?.company) {
+          tenantName = approvedRequest.company
+        }
+      }
+
       const [newTenant] = await db
         .insert(tenants)
         .values({
-          name: `${clerkUser.firstName || 'My'} Organisation`,
+          name: tenantName,
           slug: `user-${userId}`,
           plan: 'free',
         })

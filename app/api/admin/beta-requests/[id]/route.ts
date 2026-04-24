@@ -1,17 +1,16 @@
 import { auth, currentUser, clerkClient } from '@clerk/nextjs/server'
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { betaRequests, tenants } from '@/lib/db/schema'
+import { betaRequests } from '@/lib/db/schema'
 import { eq } from 'drizzle-orm'
 import { isPlatformAdmin } from '@/lib/admin'
 import { resend, FROM_EMAIL } from '@/lib/resend'
 import { logAdminActivity } from '@/lib/admin-activity'
 import { revalidatePath } from 'next/cache'
 
-const SIGNUP_URL =
-  process.env.NEXT_PUBLIC_APP_URL
-    ? `${process.env.NEXT_PUBLIC_APP_URL}/sign-up`
-    : 'https://vaultdoc.neuverk.com/sign-up'
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://vaultdoc.neuverk.com'
+const DASHBOARD_URL = `${APP_URL}/dashboard`
+const SIGNIN_URL = `${APP_URL}/sign-in`
 
 export async function PATCH(
   req: NextRequest,
@@ -108,41 +107,41 @@ export async function PATCH(
 
   // ── Approve ──────────────────────────────────────────────────────────────
 
-  // 1. Mark approved
+  // 1. Create Clerk invitation first — before touching the DB so the admin
+  //    gets a clear error if Clerk is unavailable.
+  //
+  //    notify: false   → we send our own email via Resend; Clerk does NOT send
+  //                      a separate invitation email (avoids two confusing emails)
+  //    ignoreExisting  → if a Clerk account already exists for this email,
+  //                      skip the invitation silently; invitation.url will be
+  //                      undefined and we fall back to the sign-in URL
+  //    redirectUrl     → where Clerk sends the user after account creation
+  let inviteUrl: string = SIGNIN_URL
+  let clerkWarning: string | null = null
+
+  try {
+    const clerk = await clerkClient()
+    const invitation = await clerk.invitations.createInvitation({
+      emailAddress: request.email,
+      redirectUrl: DASHBOARD_URL,
+      notify: false,
+      ignoreExisting: true,
+    })
+    // invitation.url is set for new Clerk users; undefined when ignoreExisting
+    // silently skipped because a Clerk account already exists
+    inviteUrl = invitation.url ?? SIGNIN_URL
+  } catch (err) {
+    console.error('[beta-requests] Clerk invitation failed:', err)
+    clerkWarning = 'Clerk invitation could not be created. User can still sign in if they already have a Clerk account, otherwise resend manually.'
+  }
+
+  // 2. Mark approved in DB
   await db
     .update(betaRequests)
     .set({ status: 'approved', reviewedAt: new Date(), reviewNote: note ?? null })
     .where(eq(betaRequests.id, id))
 
-  // 2. Create tenant (slug derived from email prefix + id suffix for uniqueness)
-  const slugBase = request.email
-    .split('@')[0]
-    .toLowerCase()
-    .replace(/[^a-z0-9]/g, '-')
-    .replace(/-+/g, '-')
-    .slice(0, 40)
-  const slug = `${slugBase}-${id.slice(0, 8)}`
-
-  await db.insert(tenants).values({
-    name: request.company,
-    slug,
-    plan: 'free',
-  })
-
-  // 3. Send Clerk invitation
-  try {
-    const clerk = await clerkClient()
-    await clerk.invitations.createInvitation({
-      emailAddress: request.email,
-      redirectUrl: SIGNUP_URL,
-      ignoreExisting: true,
-    })
-  } catch (err) {
-    console.error('[beta-requests] Clerk invitation failed:', err)
-    // Non-fatal — tenant is created, admin can resend manually
-  }
-
-  // 4. Log activity
+  // 3. Log activity
   await logAdminActivity({
     action: 'beta_approved',
     targetType: 'beta_request',
@@ -157,7 +156,8 @@ export async function PATCH(
   revalidatePath('/dashboard/admin/activity')
   revalidatePath('/dashboard/admin')
 
-  // 5. Send welcome email
+  // 4. Send approval email with the Clerk invitation link embedded.
+  //    One email, one button — no separate Clerk email to confuse the user.
   resend.emails
     .send({
       from: FROM_EMAIL,
@@ -170,13 +170,15 @@ export async function PATCH(
           VaultDoc helps enterprise teams generate audit-ready compliance
           documentation aligned to ISO 27001, TISAX, SOC 2, GDPR, and more.
         </p>
-        <p>
-          Click below to create your account and get started:
-        </p>
+        <p>Click the button below to set up your account and get started:</p>
         <p style="margin:24px 0">
-          <a href="${SIGNUP_URL}" style="background:#111;color:#fff;padding:12px 24px;border-radius:10px;text-decoration:none;font-weight:600;font-size:14px">
-            Create your VaultDoc account →
+          <a href="${inviteUrl}" style="background:#111;color:#fff;padding:12px 24px;border-radius:10px;text-decoration:none;font-weight:600;font-size:14px">
+            Set up your VaultDoc account →
           </a>
+        </p>
+        <p style="color:#6b7280;font-size:13px">
+          If the button doesn't work, copy and paste this link into your browser:<br>
+          <a href="${inviteUrl}" style="color:#374151">${inviteUrl}</a>
         </p>
         <p>
           If you have any questions, reply to this email and we'll help you
@@ -187,5 +189,8 @@ export async function PATCH(
     })
     .catch((err) => console.error('[beta-requests] welcome email failed:', err))
 
-  return NextResponse.json({ success: true })
+  return NextResponse.json({
+    success: true,
+    ...(clerkWarning ? { warning: clerkWarning } : {}),
+  })
 }
