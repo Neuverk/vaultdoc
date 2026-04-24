@@ -82,6 +82,27 @@ export async function PATCH(
     revalidatePath('/dashboard/admin/activity')
     revalidatePath('/dashboard/admin')
 
+    // Send rejection notification — fire and forget, DB is already updated
+    resend.emails
+      .send({
+        from: FROM_EMAIL,
+        to: request.email,
+        subject: 'Your VaultDoc beta request',
+        html: `
+          <p>Hi ${request.name},</p>
+          <p>
+            Thank you for your interest in VaultDoc. Unfortunately, we're not
+            able to offer you beta access at this time.
+          </p>
+          <p>
+            We'll keep your request on file and may reach out in the future
+            as we expand access.
+          </p>
+          <p>— The VaultDoc team</p>
+        `,
+      })
+      .catch((err) => console.error('[beta-requests] rejection email failed:', err))
+
     return NextResponse.json({ success: true })
   }
 
