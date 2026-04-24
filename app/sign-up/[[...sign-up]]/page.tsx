@@ -1,9 +1,73 @@
 'use client'
 
-import { useState } from 'react'
+import { Suspense, useState } from 'react'
+import { useSearchParams } from 'next/navigation'
+import { SignUp } from '@clerk/nextjs'
 import Link from 'next/link'
 
-export default function SignUpPage() {
+// ─── Clerk invitation acceptance ─────────────────────────────────────────────
+// Rendered when the URL contains ?__clerk_ticket=... (the Clerk invitation URL).
+// The <SignUp /> component detects the ticket, bypasses restricted-mode
+// restrictions, and guides the user through account creation.
+// After account creation Clerk redirects to /dashboard (set via redirectUrl
+// when createInvitation was called server-side).
+function InvitationSignUpView() {
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <div className="mx-auto flex min-h-screen max-w-7xl items-center justify-center px-6 py-12">
+        <div className="grid w-full max-w-6xl gap-10 lg:grid-cols-2 lg:items-center">
+          <div className="hidden lg:block">
+            <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-medium text-blue-700">
+              <span className="h-1.5 w-1.5 rounded-full bg-blue-500" />
+              You&apos;re invited
+            </div>
+
+            <h1 className="text-4xl font-semibold tracking-tight text-gray-900">
+              Create your VaultDoc account
+            </h1>
+
+            <p className="mt-4 max-w-lg text-base leading-7 text-gray-600">
+              You&apos;ve been approved for VaultDoc beta access. Set up your
+              account below to get started.
+            </p>
+
+            <div className="mt-8 space-y-4">
+              <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+                <p className="text-sm font-medium text-gray-900">AI document generation</p>
+                <p className="mt-1 text-sm text-gray-500">
+                  Generate SOPs, policies, and runbooks aligned to ISO 27001, TISAX, SOC 2, GDPR
+                </p>
+              </div>
+              <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+                <p className="text-sm font-medium text-gray-900">Audit-ready output</p>
+                <p className="mt-1 text-sm text-gray-500">
+                  Export to PDF and Word — structured, complete, and audit-ready
+                </p>
+              </div>
+            </div>
+
+            <p className="mt-6 text-sm text-gray-500">
+              Already have an account?{' '}
+              <Link href="/sign-in" className="font-medium text-gray-900 hover:underline">
+                Sign in →
+              </Link>
+            </p>
+          </div>
+
+          <div className="flex justify-center">
+            <div className="w-full max-w-md rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
+              <SignUp fallbackRedirectUrl="/dashboard" signInUrl="/sign-in" />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ─── Beta request form ────────────────────────────────────────────────────────
+// Rendered for direct visits to /sign-up without an invitation ticket.
+function BetaRequestView() {
   const [form, setForm] = useState({
     name: '',
     email: '',
@@ -14,7 +78,7 @@ export default function SignUpPage() {
   const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle')
   const [errorMessage, setErrorMessage] = useState('')
 
-  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>): Promise<void> {
     e.preventDefault()
     setStatus('loading')
     setErrorMessage('')
@@ -66,27 +130,19 @@ export default function SignUpPage() {
 
             <div className="mt-8 space-y-4">
               <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
-                <p className="text-sm font-medium text-gray-900">
-                  Structured document creation
-                </p>
+                <p className="text-sm font-medium text-gray-900">Structured document creation</p>
                 <p className="mt-1 text-sm text-gray-500">
                   Generate SOPs, policies, runbooks, and control documentation faster
                 </p>
               </div>
-
               <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
-                <p className="text-sm font-medium text-gray-900">
-                  Framework-aligned compliance
-                </p>
+                <p className="text-sm font-medium text-gray-900">Framework-aligned compliance</p>
                 <p className="mt-1 text-sm text-gray-500">
                   ISO 27001, TISAX, SOC 2, GDPR — audit-ready output in minutes, not weeks
                 </p>
               </div>
-
               <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
-                <p className="text-sm font-medium text-gray-900">
-                  Enterprise-ready platform
-                </p>
+                <p className="text-sm font-medium text-gray-900">Enterprise-ready platform</p>
                 <p className="mt-1 text-sm text-gray-500">
                   GDPR-first product direction with a calm, professional workspace
                 </p>
@@ -225,5 +281,25 @@ export default function SignUpPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+// ─── Route entry point ────────────────────────────────────────────────────────
+// useSearchParams() requires a Suspense boundary in Next.js App Router.
+function SignUpRouter() {
+  const searchParams = useSearchParams()
+  // Clerk embeds the invitation token as ?__clerk_ticket=... when invitation.url
+  // points to a custom sign-up page. Detect it here and hand off to the
+  // SignUp component which knows how to consume the ticket.
+  const hasInvitationTicket = searchParams.has('__clerk_ticket')
+
+  return hasInvitationTicket ? <InvitationSignUpView /> : <BetaRequestView />
+}
+
+export default function SignUpPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-gray-50" />}>
+      <SignUpRouter />
+    </Suspense>
   )
 }

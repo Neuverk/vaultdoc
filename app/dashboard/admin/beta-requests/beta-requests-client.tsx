@@ -23,6 +23,8 @@ export function BetaRequestsClient({ requests }: { requests: BetaRequest[] }) {
   const [filter, setFilter] = useState<Filter>('pending')
   const [search, setSearch] = useState('')
   const [loading, setLoading] = useState<Record<string, boolean>>({})
+  const [resendLoading, setResendLoading] = useState<Record<string, boolean>>({})
+  const [resendResult, setResendResult] = useState<Record<string, { ok: boolean; message: string }>>({})
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [noteInputs, setNoteInputs] = useState<Record<string, string>>({})
 
@@ -65,6 +67,30 @@ export function BetaRequestsClient({ requests }: { requests: BetaRequest[] }) {
       alert('Something went wrong.')
     } finally {
       setLoading((l) => ({ ...l, [id]: false }))
+    }
+  }
+
+  async function handleResend(id: string) {
+    setResendLoading((l) => ({ ...l, [id]: true }))
+    setResendResult((r) => ({ ...r, [id]: { ok: true, message: '' } }))
+    try {
+      const res = await fetch(`/api/admin/beta-requests/${id}/resend-invite`, {
+        method: 'POST',
+      })
+      const data = await res.json().catch(() => ({})) as { success?: boolean; error?: string; emailType?: string }
+      if (!res.ok) {
+        setResendResult((r) => ({
+          ...r,
+          [id]: { ok: false, message: data.error ?? 'Resend failed.' },
+        }))
+        return
+      }
+      const label = data.emailType === 'signin' ? 'Sign-in email sent.' : 'Invitation email sent.'
+      setResendResult((r) => ({ ...r, [id]: { ok: true, message: label } }))
+    } catch {
+      setResendResult((r) => ({ ...r, [id]: { ok: false, message: 'Something went wrong.' } }))
+    } finally {
+      setResendLoading((l) => ({ ...l, [id]: false }))
     }
   }
 
@@ -205,6 +231,23 @@ export function BetaRequestsClient({ requests }: { requests: BetaRequest[] }) {
                               Reject
                             </button>
                           </div>
+                        </div>
+                      )}
+
+                      {r.status === 'approved' && (
+                        <div className="flex items-center gap-3 pt-1">
+                          <button
+                            disabled={resendLoading[r.id]}
+                            onClick={() => handleResend(r.id)}
+                            className="rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 disabled:opacity-50"
+                          >
+                            {resendLoading[r.id] ? 'Sending…' : 'Resend invite'}
+                          </button>
+                          {resendResult[r.id]?.message && (
+                            <span className={`text-sm font-medium ${resendResult[r.id].ok ? 'text-emerald-600' : 'text-red-600'}`}>
+                              {resendResult[r.id].message}
+                            </span>
+                          )}
                         </div>
                       )}
                     </div>
