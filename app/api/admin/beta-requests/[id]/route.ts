@@ -10,7 +10,8 @@ import { revalidatePath } from 'next/cache'
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://vaultdoc.neuverk.com'
 const DASHBOARD_URL = `${APP_URL}/dashboard`
-const SIGNIN_URL  = `${APP_URL}/sign-in`
+const SIGNUP_URL = `${APP_URL}/sign-up`
+const SIGNIN_URL = `${APP_URL}/sign-in`
 
 export async function PATCH(
   req: NextRequest,
@@ -152,7 +153,7 @@ export async function PATCH(
     try {
       invitation = await clerk.invitations.createInvitation({
         emailAddress: request.email,
-        redirectUrl: DASHBOARD_URL,
+        redirectUrl: SIGNUP_URL,
         notify: false,
       })
     } catch (err) {

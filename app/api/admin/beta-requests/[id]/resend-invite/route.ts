@@ -9,6 +9,7 @@ import { logAdminActivity } from '@/lib/admin-activity'
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://vaultdoc.neuverk.com'
 const DASHBOARD_URL = `${APP_URL}/dashboard`
+const SIGNUP_URL = `${APP_URL}/sign-up`
 const SIGNIN_URL = `${APP_URL}/sign-in`
 
 export async function POST(
@@ -79,7 +80,7 @@ export async function POST(
     try {
       invitation = await clerk.invitations.createInvitation({
         emailAddress: request.email,
-        redirectUrl: DASHBOARD_URL,
+        redirectUrl: SIGNUP_URL,
         notify: false,
       })
     } catch (err) {
