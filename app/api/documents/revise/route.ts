@@ -6,6 +6,7 @@ import { documents, users } from '@/lib/db/schema'
 import { eq } from 'drizzle-orm'
 import { checkRateLimit } from '@/lib/rate-limit'
 import { sanitizeField } from '@/lib/sanitize'
+import { isValidUUID } from '@/lib/validate'
 
 export const maxDuration = 60
 
@@ -63,9 +64,23 @@ export async function POST(req: NextRequest) {
     )
   }
 
+  if (!isValidUUID(documentId)) {
+    return new Response(
+      JSON.stringify({ error: 'Invalid documentId.' }),
+      { status: 400, headers: { 'Content-Type': 'application/json' } },
+    )
+  }
+
   if (!requestedChanges) {
     return new Response(
       JSON.stringify({ error: 'requestedChanges is required.' }),
+      { status: 400, headers: { 'Content-Type': 'application/json' } },
+    )
+  }
+
+  if (requestedChanges.length > 5000) {
+    return new Response(
+      JSON.stringify({ error: 'requestedChanges must be 5000 characters or fewer.' }),
       { status: 400, headers: { 'Content-Type': 'application/json' } },
     )
   }

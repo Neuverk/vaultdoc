@@ -45,8 +45,6 @@ export async function POST(
     )
   }
 
-  console.log(`[resend-invite] starting for email: ${request.email}, id: ${id}`)
-
   // ── Check for existing Clerk account ──────────────────────────────────────
   const clerk = await clerkClient()
   let clerkUserExists = false
@@ -54,9 +52,8 @@ export async function POST(
   try {
     const existing = await clerk.users.getUserList({ emailAddress: [request.email] })
     clerkUserExists = existing.totalCount > 0
-    console.log(`[resend-invite] Clerk user lookup — email: ${request.email}, exists: ${clerkUserExists}`)
   } catch (err) {
-    console.error(`[resend-invite] Clerk user lookup failed for ${request.email}:`, err)
+    console.error('[resend-invite] Clerk user lookup failed:', err)
     return NextResponse.json(
       { error: 'Could not verify Clerk account status. Please try again.' },
       { status: 502 },
@@ -71,7 +68,6 @@ export async function POST(
     // User already has a Clerk account — direct them to sign in.
     inviteUrl = SIGNIN_URL
     emailType = 'signin'
-    console.log(`[resend-invite] Clerk account exists for ${request.email} — using sign-in URL`)
   } else {
     // No Clerk account — create a fresh invitation every time.
     // Clerk invitation URLs are single-use and must not be reused.
@@ -84,7 +80,7 @@ export async function POST(
       })
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err)
-      console.error(`[resend-invite] Clerk invitation creation failed for ${request.email}:`, message)
+      console.error('[resend-invite] Clerk invitation creation failed:', message)
 
       // Clerk rejects the request when a pending invitation already exists.
       // The admin must revoke it in the Clerk dashboard before resending.
@@ -108,15 +104,9 @@ export async function POST(
       )
     }
 
-    console.log(
-      `[resend-invite] Clerk invitation created — id: ${invitation.id}, ` +
-      `email: ${request.email}, url present: ${Boolean(invitation.url)}`,
-    )
-
     if (!invitation.url) {
-      console.error(
-        `[resend-invite] invitation.url missing for invitation ${invitation.id} — aborting`,
-      )
+      console.error(`[resend-invite] invitation.url missing for invitation ${invitation.id}`)
+
       return NextResponse.json(
         {
           error:
@@ -167,7 +157,7 @@ export async function POST(
       `,
     })
   } catch (err) {
-    console.error(`[resend-invite] Resend email failed for ${request.email}:`, err)
+    console.error('[resend-invite] Resend email failed:', err)
     return NextResponse.json(
       { error: 'Email delivery failed. Check Resend logs.' },
       { status: 502 },

@@ -128,9 +128,8 @@ export async function PATCH(
   try {
     const existing = await clerk.users.getUserList({ emailAddress: [request.email] })
     clerkUserExists = existing.totalCount > 0
-    console.log(`[beta-approve] Clerk user lookup — email: ${request.email}, exists: ${clerkUserExists}`)
   } catch (err) {
-    console.error(`[beta-approve] Clerk user lookup failed for ${request.email}:`, err)
+    console.error('[beta-approve] Clerk user lookup failed:', err)
     return NextResponse.json(
       { error: 'Could not verify Clerk account status. Please try again.' },
       { status: 502 },
@@ -143,7 +142,6 @@ export async function PATCH(
   if (clerkUserExists) {
     // Clerk account already exists — invitation not needed; just sign in.
     inviteUrl = SIGNIN_URL
-    console.log(`[beta-approve] Clerk account already exists for ${request.email} — using sign-in URL`)
   } else {
     // New user — create a Clerk invitation.
     //   notify: false   → Clerk does NOT send its own email; we send via Resend
@@ -157,17 +155,12 @@ export async function PATCH(
         notify: false,
       })
     } catch (err) {
-      console.error(`[beta-approve] Clerk invitation creation failed for ${request.email}:`, err)
+      console.error('[beta-approve] Clerk invitation creation failed:', err)
       return NextResponse.json(
         { error: 'Failed to create Clerk invitation. Approval not saved. Please try again.' },
         { status: 502 },
       )
     }
-
-    console.log(
-      `[beta-approve] Clerk invitation created — id: ${invitation.id}, ` +
-      `email: ${request.email}, url present: ${Boolean(invitation.url)}`,
-    )
 
     if (!invitation.url) {
       // This should not happen with notify: false, but guard against it.
@@ -201,7 +194,6 @@ export async function PATCH(
     })
     .returning()
 
-  console.log(`[beta-approve] tenant linked: ${approvedTenant.id}`)
 
   await db
     .update(betaRequests)
