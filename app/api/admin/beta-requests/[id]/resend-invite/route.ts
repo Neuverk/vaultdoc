@@ -8,7 +8,6 @@ import { resend, FROM_EMAIL } from '@/lib/resend'
 import { logAdminActivity } from '@/lib/admin-activity'
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://vaultdoc.neuverk.com'
-const DASHBOARD_URL = `${APP_URL}/dashboard`
 const SIGNUP_URL = `${APP_URL}/sign-up`
 const SIGNIN_URL = `${APP_URL}/sign-in`
 
@@ -18,7 +17,7 @@ export async function POST(
 ) {
   const { id } = await params
 
-  // ── Auth ────────────────────────────────────────────────────────────────
+  // ── Auth ─────────────────────────────────────────────────────────────────
   const { userId } = await auth()
   if (!userId) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -30,7 +29,7 @@ export async function POST(
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
-  // ── Load request ─────────────────────────────────────────────────────────
+  // ── Load request ──────────────────────────────────────────────────────────
   const request = await db.query.betaRequests.findFirst({
     where: eq(betaRequests.id, id),
   })
@@ -48,7 +47,7 @@ export async function POST(
 
   console.log(`[resend-invite] starting for email: ${request.email}, id: ${id}`)
 
-  // ── Check for existing Clerk account ─────────────────────────────────────
+  // ── Check for existing Clerk account ──────────────────────────────────────
   const clerk = await clerkClient()
   let clerkUserExists = false
 
@@ -69,13 +68,17 @@ export async function POST(
   let emailType: 'invitation' | 'signin'
 
   if (clerkUserExists) {
-    // User already has a Clerk account — send them the sign-in link.
     inviteUrl = SIGNIN_URL
     emailType = 'signin'
     console.log(`[resend-invite] Clerk account exists for ${request.email} — using sign-in URL`)
+  } else if (request.invitationUrl) {
+    // Reuse the URL stored at approval time — no new Clerk call needed.
+    inviteUrl = request.invitationUrl
+    emailType = 'invitation'
+    console.log(`[resend-invite] reusing stored invitation URL for ${request.email}`)
   } else {
-    // No Clerk account yet — create a fresh invitation.
-    // notify: false → we send the email via Resend (no second Clerk email)
+    // No stored URL — create a fresh Clerk invitation.
+    // This handles cases where the row pre-dates the invitationUrl column.
     let invitation
     try {
       invitation = await clerk.invitations.createInvitation({
@@ -83,26 +86,36 @@ export async function POST(
         redirectUrl: SIGNUP_URL,
         notify: false,
       })
-    } catch (err) {
-      console.error(`[resend-invite] Clerk invitation creation failed for ${request.email}:`, err)
+    } catch (err: unknown) {
+      // Clerk rejects duplicate invitations. If one already exists we cannot
+      // retrieve its URL via the API, so surface a clear admin-facing error.
+      const message = err instanceof Error ? err.message : String(err)
+      console.error(`[resend-invite] Clerk invitation creation failed for ${request.email}:`, message)
+
+      if (message.toLowerCase().includes('already been invited') || message.toLowerCase().includes('already exists')) {
+        return NextResponse.json(
+          {
+            error:
+              'A Clerk invitation already exists for this email but the URL was not stored. ' +
+              'Revoke the existing invitation in Clerk dashboard, then try again.',
+          },
+          { status: 409 },
+        )
+      }
+
       return NextResponse.json(
         { error: 'Failed to create Clerk invitation. Please try again.' },
         { status: 502 },
       )
     }
 
-    // Temporary full-response log — remove once invitation URL is confirmed working
-    console.log('[resend-invite] full Clerk invitation response:', JSON.stringify(invitation))
     console.log(
-      `[resend-invite] invitation created — id: ${invitation.id}, ` +
-      `email: ${request.email}, url present: ${Boolean(invitation.url)}, ` +
-      `url: ${invitation.url ?? '(missing)'}`,
+      `[resend-invite] new invitation created — id: ${invitation.id}, ` +
+      `url present: ${Boolean(invitation.url)}`,
     )
 
     if (!invitation.url) {
-      console.error(
-        `[resend-invite] invitation.url missing for invitation ${invitation.id} — aborting`,
-      )
+      console.error(`[resend-invite] invitation.url missing for invitation ${invitation.id} — aborting`)
       return NextResponse.json(
         {
           error:
@@ -115,18 +128,24 @@ export async function POST(
 
     inviteUrl = invitation.url
     emailType = 'invitation'
+
+    // Persist so future resends don't call Clerk again.
+    await db
+      .update(betaRequests)
+      .set({ invitationUrl: inviteUrl })
+      .where(eq(betaRequests.id, id))
   }
 
   console.log(`[resend-invite] final CTA URL for ${request.email}: ${inviteUrl}`)
 
   // ── Send email ────────────────────────────────────────────────────────────
   const emailSubject = clerkUserExists
-    ? "Your VaultDoc account is ready"
-    : "Set up your VaultDoc account"
+    ? 'Your VaultDoc account is ready'
+    : 'Set up your VaultDoc account'
 
   const emailBody = clerkUserExists
-    ? `<p>Your VaultDoc account is ready. Click below to sign in:</p>`
-    : `<p>Click the button below to create your VaultDoc account. <strong>This link is single-use</strong> — keep it safe.</p>`
+    ? '<p>Your VaultDoc account is ready. Click below to sign in:</p>'
+    : '<p>Click the button below to create your VaultDoc account. <strong>This link is single-use</strong> — keep it safe.</p>'
 
   const emailCta = clerkUserExists ? 'Sign in to VaultDoc →' : 'Set up your VaultDoc account →'
 
@@ -157,7 +176,7 @@ export async function POST(
   } catch (err) {
     console.error(`[resend-invite] Resend email failed for ${request.email}:`, err)
     return NextResponse.json(
-      { error: 'Invitation created but email delivery failed. Check Resend logs.' },
+      { error: 'Email delivery failed. Check Resend logs.' },
       { status: 502 },
     )
   }

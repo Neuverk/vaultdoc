@@ -215,6 +215,8 @@ export async function PATCH(
       reviewedAt: new Date(),
       reviewNote: note ?? null,
       tenantId: approvedTenant.id,
+      // Store URL so resend never needs to call Clerk again
+      invitationUrl: clerkUserExists ? null : inviteUrl,
     })
     .where(eq(betaRequests.id, id))
 
