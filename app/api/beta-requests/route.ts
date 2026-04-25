@@ -3,10 +3,19 @@ import { db } from '@/lib/db'
 import { betaRequests } from '@/lib/db/schema'
 import { eq } from 'drizzle-orm'
 import { resend, FROM_EMAIL } from '@/lib/resend'
+import { checkRateLimit } from '@/lib/rate-limit'
 
 const ADMIN_NOTIFY_EMAIL = process.env.ADMIN_EMAIL ?? 'baijuamal97@gmail.com'
 
 export async function POST(req: NextRequest) {
+  const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'unknown'
+  const rl = await checkRateLimit(`beta_requests:${ip}`, 5, 15 * 60 * 1000)
+  if (!rl.success) {
+    return NextResponse.json(
+      { error: 'Too many requests. Please try again later.' },
+      { status: 429 },
+    )
+  }
   let body: unknown
   try {
     body = await req.json()

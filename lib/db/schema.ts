@@ -94,6 +94,8 @@ export const betaRequests = pgTable('beta_requests', {
   position: text('position'), // job title / role
   useCase: text('use_case'),
   status: text('status').notNull().default('pending'), // pending | approved | rejected
+  // Written back after the tenant is created so subsequent signups reuse it
+  tenantId: uuid('tenant_id').references(() => tenants.id),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   reviewedAt: timestamp('reviewed_at'),
   reviewNote: text('review_note'),

@@ -89,31 +89,48 @@ export async function bootstrapUser({
   }
 
   if (!tenant) {
-    // Use the company name from an approved beta request if one exists for this
-    // email — this is the normal path for beta users accepting their invitation.
-    let tenantName = `${firstName || 'My'} Organisation`
+    // Locate the approved beta request for this email (normal invite path).
+    let approvedRequest: (typeof betaRequests.$inferSelect) | undefined
     if (email) {
-      const approvedRequest = await db.query.betaRequests.findFirst({
+      approvedRequest = await db.query.betaRequests.findFirst({
         where: and(
           eq(betaRequests.email, email.toLowerCase()),
           eq(betaRequests.status, 'approved'),
         ),
-      })
-      if (approvedRequest?.company) {
-        tenantName = approvedRequest.company
-      }
+      }) ?? undefined
     }
 
-    const [newTenant] = await db
-      .insert(tenants)
-      .values({
-        name: tenantName,
-        slug: `user-${clerkUserId}`,
-        plan: 'free',
-      })
-      .returning()
+    // If a tenant was already created for this beta request, reuse it.
+    if (approvedRequest?.tenantId) {
+      tenant = await db.query.tenants.findFirst({
+        where: eq(tenants.id, approvedRequest.tenantId),
+      }) ?? null
+    }
 
-    tenant = newTenant
+    if (!tenant) {
+      // Use the company name from the approved request; fall back only when
+      // no beta request exists (e.g. direct admin-created accounts).
+      const tenantName = approvedRequest?.company ?? `${firstName || 'My'} Organisation`
+
+      const [newTenant] = await db
+        .insert(tenants)
+        .values({
+          name: tenantName,
+          slug: `user-${clerkUserId}`,
+          plan: 'free',
+        })
+        .returning()
+
+      tenant = newTenant
+
+      // Write the tenantId back so future signups for this invitation reuse it.
+      if (approvedRequest) {
+        await db
+          .update(betaRequests)
+          .set({ tenantId: tenant.id })
+          .where(eq(betaRequests.id, approvedRequest.id))
+      }
+    }
   }
 
   if (!user) {

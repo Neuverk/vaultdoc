@@ -5,11 +5,20 @@ import { users, documents, tenants, approvals, auditLogs } from '@/lib/db/schema
 import { eq, count } from 'drizzle-orm'
 import { createAuditLog } from '@/lib/audit'
 import { stripe } from '@/lib/stripe'
+import { checkRateLimit } from '@/lib/rate-limit'
 
 export async function POST(_req: NextRequest) {
   const { userId } = await auth()
   if (!userId) {
     return new Response('Unauthorized', { status: 401 })
+  }
+
+  const rl = await checkRateLimit(`account:delete:${userId}`, 3, 60 * 60 * 1000)
+  if (!rl.success) {
+    return new Response(
+      JSON.stringify({ error: 'Too many requests. Please try again later.' }),
+      { status: 429, headers: { 'Content-Type': 'application/json' } },
+    )
   }
 
   const dbUser = await db.query.users.findFirst({

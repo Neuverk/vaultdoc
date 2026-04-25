@@ -1,6 +1,7 @@
 import { auth } from '@clerk/nextjs/server'
 import { NextRequest } from 'next/server'
 import { extractTextFromFile } from '@/lib/extract-reference-text'
+import { checkRateLimit } from '@/lib/rate-limit'
 
 export const maxDuration = 30
 
@@ -15,6 +16,14 @@ export async function POST(req: NextRequest) {
   const { userId } = await auth()
   if (!userId) {
     return new Response('Unauthorized', { status: 401 })
+  }
+
+  const rl = await checkRateLimit(`reference:upload:${userId}`, 20, 60 * 60 * 1000)
+  if (!rl.success) {
+    return new Response(
+      JSON.stringify({ error: 'Too many uploads. Please try again later.' }),
+      { status: 429, headers: { 'Content-Type': 'application/json' } },
+    )
   }
 
   let formData: FormData

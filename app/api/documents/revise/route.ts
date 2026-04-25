@@ -5,6 +5,7 @@ import { db } from '@/lib/db'
 import { documents, users } from '@/lib/db/schema'
 import { eq } from 'drizzle-orm'
 import { checkRateLimit } from '@/lib/rate-limit'
+import { sanitizeField } from '@/lib/sanitize'
 
 export const maxDuration = 60
 
@@ -12,22 +13,6 @@ const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! })
 
 const REVISE_LIMIT = 10
 const REVISE_WINDOW_MS = 60 * 60 * 1000
-const MAX_FIELD_LENGTH = 2000
-
-function sanitizeField(value: unknown): string {
-  if (typeof value !== 'string') return ''
-  return value
-    .replace(/<[^>]*>/g, ' ')
-    .replace(/ignore\s+(all|any|previous|prior)\s+instructions?/gi, ' ')
-    .replace(/disregard\s+(all|any|previous|prior)\s+instructions?/gi, ' ')
-    .replace(/forget\s+(all|any|previous|prior)\s+instructions?/gi, ' ')
-    .replace(/system\s+prompt/gi, ' ')
-    .replace(/jailbreak/gi, ' ')
-    .replace(/```[\s\S]*?```/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim()
-    .slice(0, MAX_FIELD_LENGTH)
-}
 
 export async function POST(req: NextRequest) {
   const { userId } = await auth()
@@ -124,11 +109,17 @@ export async function POST(req: NextRequest) {
   const language = newLanguage || sourceDoc.language || 'English'
   const frameworkList = (sourceDoc.frameworks ?? []).join(', ') || 'General'
 
+  // Sanitize doc metadata before injecting into the prompt
+  const safeTitle = sanitizeField(sourceDoc.title)
+  const safeType = sanitizeField(sourceDoc.type)
+  const safeDepartment = sanitizeField(sourceDoc.department ?? '')
+  const safeConfidentiality = sanitizeField(sourceDoc.confidentiality)
+
   const systemPrompt = `You are a compliance document editor. Apply only the requested changes to the document. Copy all unaffected sections exactly as they appear in the original — do not rephrase, improve, or expand them. Output only the complete revised document in ${language}, with no commentary.`
 
   const userPrompt = `Revise the following compliance document by applying ONLY the changes listed. Copy every unaffected section verbatim.
 
-METADATA: ${sourceDoc.title} | ${sourceDoc.type} | ${sourceDoc.department} | ${frameworkList} | ${sourceDoc.confidentiality}
+METADATA: ${safeTitle} | ${safeType} | ${safeDepartment} | ${frameworkList} | ${safeConfidentiality}
 
 ORIGINAL CONTENT:
 ${sourceDoc.content}

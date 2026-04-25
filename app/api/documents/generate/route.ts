@@ -66,10 +66,9 @@ function sanitizeMessages(value: unknown): ChatMessage[] {
 }
 
 function isValidGeneratedDocument(content: string): boolean {
-  if (!content || content.trim().length < 300) return false
-  if (!content.includes('##')) return false
-  if (!content.includes('## 1. Purpose') && !content.includes('## 1.')) return false
-  return true
+  if (!content || content.trim().length < 500) return false
+  const sectionCount = (content.match(/^## /gm) ?? []).length
+  return sectionCount >= 3
 }
 
 export async function POST(req: NextRequest) {
