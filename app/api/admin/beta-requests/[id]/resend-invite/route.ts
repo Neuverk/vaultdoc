@@ -68,17 +68,13 @@ export async function POST(
   let emailType: 'invitation' | 'signin'
 
   if (clerkUserExists) {
+    // User already has a Clerk account — direct them to sign in.
     inviteUrl = SIGNIN_URL
     emailType = 'signin'
     console.log(`[resend-invite] Clerk account exists for ${request.email} — using sign-in URL`)
-  } else if (request.invitationUrl) {
-    // Reuse the URL stored at approval time — no new Clerk call needed.
-    inviteUrl = request.invitationUrl
-    emailType = 'invitation'
-    console.log(`[resend-invite] reusing stored invitation URL for ${request.email}`)
   } else {
-    // No stored URL — create a fresh Clerk invitation.
-    // This handles cases where the row pre-dates the invitationUrl column.
+    // No Clerk account — create a fresh invitation every time.
+    // Clerk invitation URLs are single-use and must not be reused.
     let invitation
     try {
       invitation = await clerk.invitations.createInvitation({
@@ -87,17 +83,20 @@ export async function POST(
         notify: false,
       })
     } catch (err: unknown) {
-      // Clerk rejects duplicate invitations. If one already exists we cannot
-      // retrieve its URL via the API, so surface a clear admin-facing error.
       const message = err instanceof Error ? err.message : String(err)
       console.error(`[resend-invite] Clerk invitation creation failed for ${request.email}:`, message)
 
-      if (message.toLowerCase().includes('already been invited') || message.toLowerCase().includes('already exists')) {
+      // Clerk rejects the request when a pending invitation already exists.
+      // The admin must revoke it in the Clerk dashboard before resending.
+      if (
+        message.toLowerCase().includes('already been invited') ||
+        message.toLowerCase().includes('already exists')
+      ) {
         return NextResponse.json(
           {
             error:
-              'A Clerk invitation already exists for this email but the URL was not stored. ' +
-              'Revoke the existing invitation in Clerk dashboard, then try again.',
+              'A pending Clerk invitation already exists for this email. ' +
+              'Revoke it in the Clerk dashboard, then resend.',
           },
           { status: 409 },
         )
@@ -110,12 +109,14 @@ export async function POST(
     }
 
     console.log(
-      `[resend-invite] new invitation created — id: ${invitation.id}, ` +
-      `url present: ${Boolean(invitation.url)}`,
+      `[resend-invite] Clerk invitation created — id: ${invitation.id}, ` +
+      `email: ${request.email}, url present: ${Boolean(invitation.url)}`,
     )
 
     if (!invitation.url) {
-      console.error(`[resend-invite] invitation.url missing for invitation ${invitation.id} — aborting`)
+      console.error(
+        `[resend-invite] invitation.url missing for invitation ${invitation.id} — aborting`,
+      )
       return NextResponse.json(
         {
           error:
@@ -128,15 +129,7 @@ export async function POST(
 
     inviteUrl = invitation.url
     emailType = 'invitation'
-
-    // Persist so future resends don't call Clerk again.
-    await db
-      .update(betaRequests)
-      .set({ invitationUrl: inviteUrl })
-      .where(eq(betaRequests.id, id))
   }
-
-  console.log(`[resend-invite] final CTA URL for ${request.email}: ${inviteUrl}`)
 
   // ── Send email ────────────────────────────────────────────────────────────
   const emailSubject = clerkUserExists

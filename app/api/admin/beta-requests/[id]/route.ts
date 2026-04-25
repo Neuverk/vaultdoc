@@ -164,12 +164,9 @@ export async function PATCH(
       )
     }
 
-    // Temporary full-response log — remove once invitation URL is confirmed working
-    console.log('[beta-approve] full Clerk invitation response:', JSON.stringify(invitation))
     console.log(
       `[beta-approve] Clerk invitation created — id: ${invitation.id}, ` +
-      `email: ${request.email}, url present: ${Boolean(invitation.url)}, ` +
-      `url: ${invitation.url ?? '(missing)'}`,
+      `email: ${request.email}, url present: ${Boolean(invitation.url)}`,
     )
 
     if (!invitation.url) {
@@ -190,8 +187,6 @@ export async function PATCH(
 
     inviteUrl = invitation.url
   }
-
-  console.log(`[beta-approve] final CTA URL for ${request.email}: ${inviteUrl}`)
 
   // ── c) Persist approval — only reached when inviteUrl is confirmed ────────
 
@@ -215,8 +210,6 @@ export async function PATCH(
       reviewedAt: new Date(),
       reviewNote: note ?? null,
       tenantId: approvedTenant.id,
-      // Store URL so resend never needs to call Clerk again
-      invitationUrl: clerkUserExists ? null : inviteUrl,
     })
     .where(eq(betaRequests.id, id))
 

@@ -96,8 +96,6 @@ export const betaRequests = pgTable('beta_requests', {
   status: text('status').notNull().default('pending'), // pending | approved | rejected
   // Written back after the tenant is created so subsequent signups reuse it
   tenantId: uuid('tenant_id').references(() => tenants.id),
-  // Clerk invitation URL stored at approval time; reused on resend
-  invitationUrl: text('invitation_url'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   reviewedAt: timestamp('reviewed_at'),
   reviewNote: text('review_note'),
