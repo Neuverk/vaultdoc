@@ -1,7 +1,7 @@
 import { auth, currentUser, clerkClient } from '@clerk/nextjs/server'
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { betaRequests } from '@/lib/db/schema'
+import { betaRequests, tenants } from '@/lib/db/schema'
 import { eq } from 'drizzle-orm'
 import { isPlatformAdmin } from '@/lib/admin'
 import { resend, FROM_EMAIL } from '@/lib/resend'
@@ -195,9 +195,27 @@ export async function PATCH(
 
   // ── c) Persist approval — only reached when inviteUrl is confirmed ────────
 
+  // Create the tenant now so betaRequests.tenantId is populated immediately.
+  // bootstrapUser() will reuse this tenant on first sign-in; no second tenant is created.
+  const [approvedTenant] = await db
+    .insert(tenants)
+    .values({
+      name: request.company,
+      slug: `beta-${request.id}`,
+      plan: 'free',
+    })
+    .returning()
+
+  console.log(`[beta-approve] tenant linked: ${approvedTenant.id}`)
+
   await db
     .update(betaRequests)
-    .set({ status: 'approved', reviewedAt: new Date(), reviewNote: note ?? null })
+    .set({
+      status: 'approved',
+      reviewedAt: new Date(),
+      reviewNote: note ?? null,
+      tenantId: approvedTenant.id,
+    })
     .where(eq(betaRequests.id, id))
 
   await logAdminActivity({
