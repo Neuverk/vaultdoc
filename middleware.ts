@@ -10,6 +10,7 @@ const isPublicRoute = createRouteMatcher([
   '/beta(.*)',
   '/api/stripe/webhook',
   '/api/beta-requests',
+  '/api/health',
 ])
 
 export default clerkMiddleware(async (auth, request) => {
