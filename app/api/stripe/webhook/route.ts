@@ -5,6 +5,28 @@ import { db } from '@/lib/db'
 import { tenants, stripeEvents } from '@/lib/db/schema'
 import { eq } from 'drizzle-orm'
 import { createAuditLog } from '@/lib/audit'
+import { resend, FROM_EMAIL } from '@/lib/resend'
+
+// NEW: structured logger — every log line is parseable JSON
+function log(fields: {
+  eventType: string
+  tenantId?: string | null
+  status: 'ok' | 'skip' | 'warn' | 'error'
+  error?: unknown
+  [key: string]: unknown
+}) {
+  const entry = {
+    ts: new Date().toISOString(),
+    action: 'stripe_webhook',
+    ...fields,
+    ...(fields.error != null ? { error: String(fields.error) } : {}),
+  }
+  if (fields.status === 'error') {
+    console.error(JSON.stringify(entry))
+  } else {
+    console.log(JSON.stringify(entry))
+  }
+}
 
 function getPlanFromPriceId(priceId?: string | null) {
   const planMap: Record<string, string> = {
@@ -91,6 +113,13 @@ async function cancelTenantSubscription(
 }
 
 export async function POST(req: Request) {
+  // NEW: guard required env vars — fail fast with a clear message
+  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET
+  if (!webhookSecret) {
+    console.error(JSON.stringify({ action: 'stripe_webhook', status: 'error', error: 'STRIPE_WEBHOOK_SECRET is not configured' }))
+    return NextResponse.json({ error: 'Webhook not configured' }, { status: 500 })
+  }
+
   const body = await req.text()
   const sig = req.headers.get('stripe-signature')
 
@@ -100,14 +129,11 @@ export async function POST(req: Request) {
 
   let event: Stripe.Event
 
+  // NEW: return 400 safely on any parse/signature failure
   try {
-    event = stripe.webhooks.constructEvent(
-      body,
-      sig,
-      process.env.STRIPE_WEBHOOK_SECRET!,
-    )
+    event = stripe.webhooks.constructEvent(body, sig, webhookSecret)
   } catch (err) {
-    console.error('Webhook signature failed:', err)
+    log({ eventType: 'unknown', status: 'error', error: err, note: 'signature verification failed' })
     return NextResponse.json({ error: 'Invalid signature' }, { status: 400 })
   }
 
@@ -116,6 +142,7 @@ export async function POST(req: Request) {
     where: eq(stripeEvents.id, event.id),
   })
   if (alreadyProcessed) {
+    log({ eventType: event.type, status: 'skip', eventId: event.id })
     return NextResponse.json({ received: true })
   }
 
@@ -127,15 +154,27 @@ export async function POST(req: Request) {
         typeof session.customer === 'string' ? session.customer : null
 
       if (tenantId && customerId) {
-        // Safety net: persist stripeCustomerId if the checkout route's DB write failed
+        // Existing: persist stripeCustomerId so it's always in sync
         await db
           .update(tenants)
           .set({ stripeCustomerId: customerId })
           .where(eq(tenants.id, tenantId))
+
+        // NEW: immediately apply subscription plan — do not wait for
+        // customer.subscription.created which may arrive later or be missed
+        const subscriptionId =
+          typeof session.subscription === 'string' ? session.subscription : null
+
+        if (subscriptionId) {
+          const subscription = await stripe.subscriptions.retrieve(subscriptionId)
+          await updateTenantSubscription(tenantId, subscription)
+          log({ eventType: event.type, tenantId, status: 'ok', subscriptionId })
+        } else {
+          // One-time payment or setup session — no subscription to apply
+          log({ eventType: event.type, tenantId, status: 'warn', sessionId: session.id, note: 'no subscription on session' })
+        }
       } else {
-        console.error(
-          `[webhook] checkout.session.completed missing tenantId or customerId — session ${session.id}`,
-        )
+        log({ eventType: event.type, tenantId: tenantId ?? null, status: 'error', sessionId: session.id, note: 'missing tenantId or customerId in metadata' })
       }
       break
     }
@@ -147,10 +186,9 @@ export async function POST(req: Request) {
 
       if (tenantId) {
         await updateTenantSubscription(tenantId, subscription)
+        log({ eventType: event.type, tenantId, status: 'ok', subscriptionId: subscription.id })
       } else {
-        console.error(
-          `[webhook] ${event.type} missing tenantId in metadata — subscription ${subscription.id}`,
-        )
+        log({ eventType: event.type, tenantId: null, status: 'error', subscriptionId: subscription.id, note: 'missing tenantId in subscription metadata' })
       }
       break
     }
@@ -161,10 +199,9 @@ export async function POST(req: Request) {
 
       if (tenantId) {
         await cancelTenantSubscription(tenantId, subscription)
+        log({ eventType: event.type, tenantId, status: 'ok', subscriptionId: subscription.id })
       } else {
-        console.error(
-          `[webhook] ${event.type} missing tenantId in metadata — subscription ${subscription.id}`,
-        )
+        log({ eventType: event.type, tenantId: null, status: 'error', subscriptionId: subscription.id, note: 'missing tenantId in subscription metadata' })
       }
       break
     }
@@ -197,8 +234,57 @@ export async function POST(req: Request) {
               customerId,
             },
           })
+
+          // NEW: notify the customer — fire-and-forget, DB is already updated
+          const customerEmail = invoice.customer_email
+          if (customerEmail) {
+            const hostedUrl = invoice.hosted_invoice_url
+            resend.emails
+              .send({
+                from: FROM_EMAIL,
+                to: customerEmail,
+                subject: 'Action required: VaultDoc payment failed',
+                html: `
+                  <p>Hi,</p>
+                  <p>
+                    We were unable to process your VaultDoc subscription payment.
+                    Your account remains active while we retry, but please update
+                    your payment method to avoid any interruption.
+                  </p>
+                  ${hostedUrl ? `
+                  <p style="margin:24px 0">
+                    <a href="${hostedUrl}" style="background:#111;color:#fff;padding:12px 24px;border-radius:10px;text-decoration:none;font-weight:600;font-size:14px">
+                      Update payment method →
+                    </a>
+                  </p>` : ''}
+                  <p>If you have any questions, reply to this email and we'll help you out.</p>
+                  <p>— The VaultDoc team</p>
+                `,
+              })
+              .catch((err) =>
+                log({ eventType: event.type, tenantId: tenant.id, status: 'error', error: err, note: 'payment_failed email delivery failed' }),
+              )
+          }
+
+          log({ eventType: event.type, tenantId: tenant.id, status: 'ok', invoiceId: invoice.id, emailSent: Boolean(customerEmail) })
+        } else {
+          log({ eventType: event.type, tenantId: null, status: 'warn', customerId, note: 'tenant not found for this Stripe customer' })
         }
       }
+      break
+    }
+
+    // NEW: EU SCA / 3DS — customer must authenticate, not a payment failure.
+    // Log and return 200 so Stripe does not retry unnecessarily.
+    case 'payment_intent.requires_action': {
+      const pi = event.data.object as Stripe.PaymentIntent
+      log({ eventType: event.type, tenantId: null, status: 'warn', paymentIntentId: pi.id, note: 'EU SCA: customer action required' })
+      break
+    }
+
+    case 'invoice.payment_action_required': {
+      const invoice = event.data.object as Stripe.Invoice
+      log({ eventType: event.type, tenantId: null, status: 'warn', invoiceId: invoice.id, note: 'EU SCA: 3DS authentication required' })
       break
     }
 
@@ -206,7 +292,7 @@ export async function POST(req: Request) {
       break
   }
 
-  // Mark event processed — ON CONFLICT DO NOTHING handles rare duplicate-request races
+  // Mark event processed — onConflictDoNothing handles rare concurrent-delivery races
   await db.insert(stripeEvents).values({ id: event.id }).onConflictDoNothing()
 
   return NextResponse.json({ received: true })
