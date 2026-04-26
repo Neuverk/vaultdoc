@@ -1,123 +1,87 @@
-import { auth, clerkClient } from '@clerk/nextjs/server'
-import { NextRequest } from 'next/server'
+import { auth, currentUser } from '@clerk/nextjs/server'
+import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { users, documents, tenants, approvals, auditLogs } from '@/lib/db/schema'
-import { eq, count } from 'drizzle-orm'
-import { createAuditLog } from '@/lib/audit'
-import { stripe } from '@/lib/stripe'
+import { users } from '@/lib/db/schema'
+import { eq } from 'drizzle-orm'
+import { resend, FROM_EMAIL } from '@/lib/resend'
+import { logAdminActivity } from '@/lib/admin-activity'
 import { checkRateLimit } from '@/lib/rate-limit'
 
-export async function POST(_req: NextRequest) {
+export async function POST() {
   const { userId } = await auth()
-  if (!userId) {
-    return new Response('Unauthorized', { status: 401 })
-  }
+  if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const rl = await checkRateLimit(`account:delete:${userId}`, 3, 60 * 60 * 1000)
   if (!rl.success) {
-    return new Response(
-      JSON.stringify({ error: 'Too many requests. Please try again later.' }),
-      { status: 429, headers: { 'Content-Type': 'application/json' } },
+    return NextResponse.json(
+      { error: 'Too many requests. Please try again later.' },
+      { status: 429 },
     )
   }
+
+  const clerkUser = await currentUser()
+  const email = clerkUser?.emailAddresses[0]?.emailAddress ?? ''
 
   const dbUser = await db.query.users.findFirst({
     where: eq(users.clerkId, userId),
   })
 
-  if (!dbUser) {
-    return new Response(
-      JSON.stringify({ error: 'User not found.' }),
-      { status: 404, headers: { 'Content-Type': 'application/json' } },
+  if (!dbUser) return NextResponse.json({ error: 'User not found.' }, { status: 404 })
+
+  if (dbUser.deletedAt) {
+    return NextResponse.json(
+      { error: 'Account is already scheduled for deletion.' },
+      { status: 409 },
     )
   }
 
-  const tenantId = dbUser.tenantId
-  if (!tenantId) {
-    return new Response(
-      JSON.stringify({ error: 'No tenant associated with this account.' }),
-      { status: 404, headers: { 'Content-Type': 'application/json' } },
-    )
-  }
+  const now = new Date()
+  const deletionScheduledFor = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000)
+  const deletionReason = 'User requested account deletion'
 
-  const tenant = await db.query.tenants.findFirst({
-    where: eq(tenants.id, tenantId),
+  await db
+    .update(users)
+    .set({
+      deletedAt: now,
+      deletionScheduledFor,
+      deletionReason,
+      deletedBy: email,
+      blocked: true,
+    })
+    .where(eq(users.id, dbUser.id))
+
+  await logAdminActivity({
+    action: 'user_deletion_scheduled',
+    targetType: 'user',
+    targetId: dbUser.id,
+    targetEmail: email,
+    adminEmail: email,
+    note: deletionReason,
+    metadata: {
+      selfRequested: true,
+      deletionScheduledFor: deletionScheduledFor.toISOString(),
+    },
   })
 
-  try {
-    // 1. Audit log before any data is removed
-    await createAuditLog({
-      tenantId,
-      userId: dbUser.id,
-      action: 'account_deleted',
-      resourceType: 'user',
-      resourceId: dbUser.id,
-      metadata: {
-        email: dbUser.email,
-        tenantId,
-      },
+  resend.emails
+    .send({
+      from: FROM_EMAIL,
+      to: email,
+      subject: 'Your VaultDoc account has been scheduled for deletion',
+      html: `
+        <p>Hi${clerkUser?.firstName ? ` ${clerkUser.firstName}` : ''},</p>
+        <p>
+          Your VaultDoc account has been scheduled for deletion. Access has been disabled,
+          and your data will be retained for 7 days before permanent deletion.
+        </p>
+        <p>
+          If this was a mistake, please contact VaultDoc support immediately by replying
+          to this email.
+        </p>
+        <p>— The VaultDoc team</p>
+      `,
     })
+    .catch((err) => console.error('[self-delete] deletion email failed:', err))
 
-    // 2. Cancel active Stripe subscription before removing DB records
-    if (tenant?.stripeSubscriptionId) {
-      try {
-        await stripe.subscriptions.cancel(tenant.stripeSubscriptionId)
-      } catch (stripeError) {
-        console.error('Failed to cancel Stripe subscription:', String(stripeError))
-        // Non-fatal: log and continue — billing team can reconcile manually
-      }
-    }
-
-    // 3. Count users in tenant to decide whether to delete the tenant
-    const [{ value: userCount }] = await db
-      .select({ value: count() })
-      .from(users)
-      .where(eq(users.tenantId, tenantId))
-
-    const isSoleUser = userCount <= 1
-
-    // 4. Delete approvals (FK: approvals.documentId → documents.id,
-    //    approvals.requestedBy/reviewedBy → users.id)
-    await db.delete(approvals).where(eq(approvals.tenantId, tenantId))
-
-    // 5. Delete documents (FK: documents.createdBy → users.id)
-    await db.delete(documents).where(eq(documents.tenantId, tenantId))
-
-    // 6. Nullify audit log user references — GDPR pseudonymisation and clears
-    //    the FK so the user row can be deleted
-    await db
-      .update(auditLogs)
-      .set({ userId: null })
-      .where(eq(auditLogs.userId, dbUser.id))
-
-    // 7. Delete user BEFORE tenant (tenant FK on auditLogs is still intact here)
-    await db.delete(users).where(eq(users.id, dbUser.id))
-
-    // 8. If sole user: clear tenant-scoped audit logs (removes tenantId FK),
-    //    then delete the tenant itself
-    if (isSoleUser) {
-      await db.delete(auditLogs).where(eq(auditLogs.tenantId, tenantId))
-      await db.delete(tenants).where(eq(tenants.id, tenantId))
-    }
-  } catch (error) {
-    console.error('Account deletion failed:', String(error))
-    return new Response(
-      JSON.stringify({ error: 'Account deletion failed. Please try again.' }),
-      { status: 500, headers: { 'Content-Type': 'application/json' } },
-    )
-  }
-
-  // 9. Delete Clerk user — done last so a DB failure leaves the account intact
-  try {
-    const clerk = await clerkClient()
-    await clerk.users.deleteUser(userId)
-  } catch (clerkError) {
-    console.error('Failed to delete Clerk user:', String(clerkError))
-    // DB records are already gone; log the failure for manual cleanup
-  }
-
-  return new Response(
-    JSON.stringify({ success: true }),
-    { headers: { 'Content-Type': 'application/json' } },
-  )
+  return NextResponse.json({ success: true })
 }

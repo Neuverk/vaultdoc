@@ -76,7 +76,7 @@ const NAV_ITEMS: NavItem[] = [
   { type: 'link', label: 'Users', href: '/dashboard/admin/users', icon: <IconUsers /> },
   { type: 'link', label: 'Documents', href: '/dashboard/admin/documents', icon: <IconDoc /> },
   { type: 'link', label: 'Plans & Billing', href: '/dashboard/admin/billing', icon: <IconCard /> },
-  { type: 'link', label: 'Organizations', href: '/dashboard/admin/organizations', icon: <IconBuilding /> },
+  { type: 'link', label: 'Workspaces', href: '/dashboard/admin/organizations', icon: <IconBuilding /> },
   { type: 'section', label: 'System' },
   { type: 'link', label: 'Activity', href: '/dashboard/admin/activity', icon: <IconClock /> },
   { type: 'link', label: 'Settings', href: '/dashboard/admin/settings', icon: <IconSettings /> },

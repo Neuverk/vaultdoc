@@ -21,16 +21,25 @@ export default async function AdminUsersPage() {
       tenantName: tenants.name,
       tenantPlan: tenants.plan,
       docCount: count(documents.id),
+      deletedAt: users.deletedAt,
+      deletionScheduledFor: users.deletionScheduledFor,
+      deletedBy: users.deletedBy,
     })
     .from(users)
     .leftJoin(tenants, eq(users.tenantId, tenants.id))
     .leftJoin(documents, eq(documents.createdBy, users.id))
-    .groupBy(users.id, tenants.name, tenants.plan)
+    .groupBy(
+      users.id,
+      tenants.name,
+      tenants.plan,
+    )
     .orderBy(desc(users.createdAt))
 
-  const total = rows.length
-  const blocked = rows.filter((u) => u.blocked).length
-  const paid = rows.filter((u) => u.tenantPlan && u.tenantPlan !== 'free').length
+  const nonDeleted = rows.filter((u) => !u.deletedAt)
+  const total = nonDeleted.length
+  const blocked = nonDeleted.filter((u) => u.blocked).length
+  const paid = nonDeleted.filter((u) => u.tenantPlan && u.tenantPlan !== 'free').length
+  const deleted = rows.filter((u) => !!u.deletedAt).length
 
   return (
     <div className="max-w-300">
@@ -39,7 +48,7 @@ export default async function AdminUsersPage() {
           <div>
             <h1 className="text-[15px] font-semibold text-gray-900">Users</h1>
             <p className="mt-0.5 text-sm text-gray-500">
-              All registered users across every organization.
+              All registered users across every workspace.
             </p>
           </div>
           <div className="flex items-center gap-6 shrink-0">
@@ -47,6 +56,7 @@ export default async function AdminUsersPage() {
               { label: 'Total', value: total },
               { label: 'Paid plan', value: paid },
               { label: 'Blocked', value: blocked },
+              { label: 'Deleted', value: deleted },
             ].map((s) => (
               <div key={s.label} className="text-center">
                 <div className="text-xl font-semibold tabular-nums text-gray-900">{s.value}</div>

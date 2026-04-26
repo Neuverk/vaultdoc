@@ -90,6 +90,8 @@ export default function NewDocumentPage() {
   const [pdfWatermark, setPdfWatermark] = useState(false)
   const [isAtLimit, setIsAtLimit] = useState(false)
   const [showQuotaModal, setShowQuotaModal] = useState(false)
+  const [quotaUsed, setQuotaUsed] = useState<number | null>(null)
+  const [quotaLimit, setQuotaLimit] = useState<number | null>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
 
   // ── Tab + reference flow state ──────────────────────────────────────────────
@@ -134,6 +136,8 @@ export default function NewDocumentPage() {
         const data = await res.json()
         setPdfWatermark(data?.plan === 'free')
         setIsAtLimit(data?.isAtLimit === true)
+        if (typeof data?.quotaUsed === 'number') setQuotaUsed(data.quotaUsed)
+        if (typeof data?.limit === 'number') setQuotaLimit(data.limit)
       } catch {
         setPdfWatermark(false)
       }
@@ -565,22 +569,29 @@ ${form.tools ? `Tools/Systems: ${form.tools}` : ''}`,
             </div>
           </div>
 
+          {quotaUsed !== null && quotaLimit !== null && !isAtLimit && (
+            <div className="mb-6 flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-600 shadow-sm w-fit">
+              <span className="h-2 w-2 rounded-full bg-emerald-400" />
+              Beta usage: <span className="font-semibold text-gray-900">{quotaUsed} of {quotaLimit}</span> documents used
+            </div>
+          )}
+
           {isAtLimit && (
             <div className="mb-8 rounded-3xl border border-amber-200 bg-amber-50 p-6 shadow-sm">
               <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                 <div>
                   <p className="text-sm font-semibold text-amber-950">
-                    Free plan limit reached
+                    Beta document limit reached
                   </p>
                   <p className="mt-2 text-sm leading-6 text-amber-900">
-                    You&apos;ve used all 3 lifetime document saves on the Free plan. Deleting documents does not restore your quota. Upgrade to keep creating.
+                    You have used all {quotaLimit ?? ''} documents in your beta quota. Contact VaultDoc support to request more access.
                   </p>
                 </div>
                 <a
-                  href="/dashboard/billing"
+                  href="mailto:support@vaultdoc.io"
                   className="inline-flex shrink-0 items-center justify-center rounded-xl border border-amber-300 bg-white px-4 py-2.5 text-sm font-semibold text-amber-900 transition hover:bg-amber-100"
                 >
-                  Upgrade plan →
+                  Contact support →
                 </a>
               </div>
             </div>
@@ -594,9 +605,10 @@ ${form.tools ? `Tools/Systems: ${form.tools}` : ''}`,
                     AI processing notice
                   </p>
                   <p className="mt-2 text-sm leading-6 text-amber-900">
-                    Your inputs are processed by Anthropic&apos;s AI to generate
-                    documents. Avoid including passwords, personal data, or
-                    classified information.
+                    VaultDoc uses AI to generate document drafts. The information you enter may be
+                    processed by our AI provider to create the output. Do not enter passwords,
+                    secrets, or highly confidential personal data. Review all generated content
+                    before use.
                   </p>
                 </div>
                 <button
@@ -784,8 +796,13 @@ ${form.tools ? `Tools/Systems: ${form.tools}` : ''}`,
               </div>
 
               <div className="flex flex-col gap-3 border-t border-gray-100 pt-6 sm:flex-row sm:items-center sm:justify-between">
-                <p className="text-sm text-gray-500">
-                  VaultDoc will guide the next step through a short AI follow-up flow.
+                <p className="max-w-md text-xs leading-5 text-gray-400">
+                  Inputs are processed by our AI provider to generate your document.
+                  Do not enter passwords, secrets, or highly confidential personal data.
+                  Review all output before operational use.{' '}
+                  <a href="/privacy#ai" className="underline underline-offset-2 hover:text-gray-600">
+                    Privacy policy
+                  </a>
                 </p>
                 <button
                   onClick={startChat}
@@ -1075,11 +1092,11 @@ ${form.tools ? `Tools/Systems: ${form.tools}` : ''}`,
 
               {isAtLimit && (
                 <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
-                  <p className="text-sm font-semibold text-amber-950">Free plan limit reached</p>
+                  <p className="text-sm font-semibold text-amber-950">Beta document limit reached</p>
                   <p className="mt-1 text-sm leading-6 text-amber-900">
-                    You&apos;ve used all 3 lifetime saves. Deleting documents does not restore quota.{' '}
-                    <a href="/dashboard/billing" className="font-semibold underline underline-offset-2">
-                      Upgrade to continue →
+                    You have used all {quotaLimit ?? ''} documents in your beta quota.{' '}
+                    <a href="mailto:support@vaultdoc.io" className="font-semibold underline underline-offset-2">
+                      Contact support to request more →
                     </a>
                   </p>
                 </div>
@@ -1353,13 +1370,13 @@ ${form.tools ? `Tools/Systems: ${form.tools}` : ''}`,
                 </svg>
               </div>
               <h2 id="quota-modal-title" className="text-base font-semibold text-gray-900">
-                Free plan limit reached
+                Beta document limit reached
               </h2>
               <p className="mt-2 text-sm leading-6 text-gray-600">
-                You&apos;ve used all 3 lifetime document saves included in the Free plan.
+                You have used all {quotaLimit ?? 'your'} documents in your beta quota.
               </p>
               <p className="mt-2 text-sm leading-6 text-gray-600">
-                Deleting documents does not restore your quota. Upgrade to Starter or Enterprise to save unlimited documents.
+                Contact VaultDoc support to request an increased limit.
               </p>
             </div>
             <div className="flex items-center justify-end gap-2 border-t border-gray-100 px-6 py-4">
@@ -1370,10 +1387,10 @@ ${form.tools ? `Tools/Systems: ${form.tools}` : ''}`,
                 Close
               </button>
               <a
-                href="/dashboard/billing"
+                href="mailto:support@vaultdoc.io"
                 className="inline-flex items-center justify-center rounded-xl bg-gray-900 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-gray-800"
               >
-                Upgrade plan →
+                Contact support →
               </a>
             </div>
           </div>

@@ -1,12 +1,11 @@
 import { auth, currentUser } from '@clerk/nextjs/server'
 import { NextRequest } from 'next/server'
 import { db } from '@/lib/db'
-import { documents, tenants } from '@/lib/db/schema'
-import { eq, sql, and, or, ne, lt } from 'drizzle-orm'
+import { documents } from '@/lib/db/schema'
 import { createAuditLog } from '@/lib/audit'
 import { bootstrapUser } from '@/lib/bootstrap-user'
 import { sanitizeField, sanitizeStringArray } from '@/lib/sanitize'
-import { PLANS } from '@/lib/plans'
+import { claimBetaDocumentSlot } from '@/lib/beta-quota'
 
 const MAX_CONTENT_LENGTH = 100_000
 
@@ -78,31 +77,18 @@ export async function POST(req: NextRequest) {
       return jsonResponse({ error: 'Account suspended.' }, 403)
     }
 
-    // ── Quota enforcement ─────────────────────────────────────────────────────
-    // Atomically claim a quota slot. Returns 0 rows if the free-plan limit is
-    // already reached; returns 1 row otherwise (race-safe via conditional UPDATE).
-    const FREE_LIMIT = PLANS.free.maxDocuments
+    // ── Beta quota enforcement ────────────────────────────────────────────────
+    // Atomic check-and-increment. Returns success:false if the tenant is at cap.
+    const quota = await claimBetaDocumentSlot(tenant.id, clerkEmail)
 
-    const [quota] = await db
-      .update(tenants)
-      .set({ documentQuotaUsed: sql`${tenants.documentQuotaUsed} + 1` })
-      .where(
-        and(
-          eq(tenants.id, tenant.id),
-          or(
-            ne(tenants.plan, 'free'),
-            lt(tenants.documentQuotaUsed, FREE_LIMIT),
-          ),
-        ),
-      )
-      .returning({ documentQuotaUsed: tenants.documentQuotaUsed })
-
-    if (!quota) {
+    if (!quota.success) {
       return jsonResponse(
         {
-          error: `Free plan limit reached (${FREE_LIMIT} documents max)`,
+          error:
+            'You have reached your current beta document limit. ' +
+            'Please contact VaultDoc support to request more access.',
           code: 'PLAN_LIMIT_REACHED',
-          limit: FREE_LIMIT,
+          limit: quota.limit,
         },
         403,
       )

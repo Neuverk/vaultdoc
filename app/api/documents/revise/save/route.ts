@@ -1,11 +1,11 @@
 import { auth } from '@clerk/nextjs/server'
 import { NextRequest } from 'next/server'
 import { db } from '@/lib/db'
-import { documents, users, tenants } from '@/lib/db/schema'
-import { eq, sql, and, or, ne, lt } from 'drizzle-orm'
+import { documents, users } from '@/lib/db/schema'
+import { eq } from 'drizzle-orm'
 import { createAuditLog } from '@/lib/audit'
-import { PLANS } from '@/lib/plans'
 import { isValidUUID } from '@/lib/validate'
+import { claimBetaDocumentSlot } from '@/lib/beta-quota'
 
 const MAX_TITLE_LENGTH = 500
 const MAX_CONTENT_LENGTH = 100_000
@@ -83,6 +83,13 @@ export async function POST(req: NextRequest) {
     )
   }
 
+  if (dbUser.deletedAt) {
+    return new Response(
+      JSON.stringify({ error: 'This account has been scheduled for deletion. Please contact VaultDoc support if this is a mistake.' }),
+      { status: 403, headers: { 'Content-Type': 'application/json' } },
+    )
+  }
+
   // Verify source document belongs to the same tenant
   if (sourceDocumentId) {
     const sourceDoc = await db.query.documents.findFirst({
@@ -96,29 +103,19 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  const FREE_LIMIT = PLANS.free.maxDocuments
   const tenantId = dbUser.tenantId
 
-  const [quota] = await db
-    .update(tenants)
-    .set({ documentQuotaUsed: sql`${tenants.documentQuotaUsed} + 1` })
-    .where(
-      and(
-        eq(tenants.id, tenantId),
-        or(
-          ne(tenants.plan, 'free'),
-          lt(tenants.documentQuotaUsed, FREE_LIMIT),
-        ),
-      ),
-    )
-    .returning({ documentQuotaUsed: tenants.documentQuotaUsed })
+  // ── Beta quota enforcement ────────────────────────────────────────────────
+  const quota = await claimBetaDocumentSlot(tenantId, dbUser.email)
 
-  if (!quota) {
+  if (!quota.success) {
     return new Response(
       JSON.stringify({
-        error: `Free plan limit reached (${FREE_LIMIT} documents max)`,
+        error:
+          'You have reached your current beta document limit. ' +
+          'Please contact VaultDoc support to request more access.',
         code: 'PLAN_LIMIT_REACHED',
-        limit: FREE_LIMIT,
+        limit: quota.limit,
       }),
       { status: 403, headers: { 'Content-Type': 'application/json' } },
     )

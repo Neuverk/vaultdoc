@@ -4,7 +4,7 @@ import { NextRequest } from 'next/server'
 import { eq } from 'drizzle-orm'
 
 import { bootstrapUser } from '@/lib/bootstrap-user'
-import { canCreateDocument } from '@/lib/plan-limits'
+import { canCreateBetaDocument } from '@/lib/beta-quota'
 import { checkRateLimit } from '@/lib/rate-limit'
 import { sanitizeField, sanitizeStringArray } from '@/lib/sanitize'
 import { db } from '@/lib/db'
@@ -130,14 +130,14 @@ export async function POST(req: NextRequest) {
     return jsonResponse({ error: 'Unable to verify plan limits.' }, 403)
   }
 
-  const quota = await canCreateDocument(bootstrapped.tenant.id)
+  // Pre-check before calling Anthropic — does not increment the counter
+  const quota = await canCreateBetaDocument(bootstrapped.tenant.id)
   if (!quota.allowed) {
     return jsonResponse(
       {
         error:
-          quota.limit != null
-            ? `You’ve reached your current plan limit (${quota.limit} documents). Upgrade to continue.`
-            : "You’ve reached your current plan limit. Upgrade to continue.",
+          'You have reached your current beta document limit. ' +
+          'Please contact VaultDoc support to request more access.',
         code: 'PLAN_LIMIT_REACHED',
         limit: quota.limit,
       },

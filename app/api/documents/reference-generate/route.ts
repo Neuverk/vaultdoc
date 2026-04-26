@@ -2,6 +2,10 @@ import Anthropic from '@anthropic-ai/sdk'
 import { auth } from '@clerk/nextjs/server'
 import { NextRequest } from 'next/server'
 import { checkRateLimit } from '@/lib/rate-limit'
+import { db } from '@/lib/db'
+import { users } from '@/lib/db/schema'
+import { eq } from 'drizzle-orm'
+import { canCreateBetaDocument } from '@/lib/beta-quota'
 
 export const maxDuration = 60
 
@@ -148,6 +152,35 @@ export async function POST(req: NextRequest) {
       JSON.stringify({ error: 'Invalid request body.' }),
       { status: 400, headers: { 'Content-Type': 'application/json' } },
     )
+  }
+
+  // ── Beta quota pre-check (before Anthropic call) ─────────────────────────
+  const dbUser = await db.query.users.findFirst({
+    where: eq(users.clerkId, userId),
+    columns: { tenantId: true, deletedAt: true },
+  })
+
+  if (dbUser?.deletedAt) {
+    return new Response(
+      JSON.stringify({ error: 'This account has been scheduled for deletion. Please contact VaultDoc support if this is a mistake.' }),
+      { status: 403, headers: { 'Content-Type': 'application/json' } },
+    )
+  }
+
+  if (dbUser?.tenantId) {
+    const quota = await canCreateBetaDocument(dbUser.tenantId)
+    if (!quota.allowed) {
+      return new Response(
+        JSON.stringify({
+          error:
+            'You have reached your current beta document limit. ' +
+            'Please contact VaultDoc support to request more access.',
+          code: 'PLAN_LIMIT_REACHED',
+          limit: quota.limit,
+        }),
+        { status: 403, headers: { 'Content-Type': 'application/json' } },
+      )
+    }
   }
 
   const referenceText = sanitizeField(body.referenceText, MAX_REF_LENGTH)

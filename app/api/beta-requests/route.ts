@@ -7,6 +7,30 @@ import { checkRateLimit } from '@/lib/rate-limit'
 
 const ADMIN_NOTIFY_EMAIL = process.env.ADMIN_EMAIL ?? 'baijuamal97@gmail.com'
 
+const PERSONAL_DOMAINS = new Set([
+  'gmail.com', 'outlook.com', 'hotmail.com', 'yahoo.com',
+  'icloud.com', 'proton.me', 'protonmail.com', 'gmx.de', 'web.de',
+])
+
+function classifyEmail(email: string): 'personal' | 'company' {
+  const domain = email.split('@')[1]?.toLowerCase() ?? ''
+  return PERSONAL_DOMAINS.has(domain) ? 'personal' : 'company'
+}
+
+function deriveDomain(companyWebsite: string | undefined, email: string): string {
+  if (companyWebsite?.trim()) {
+    const stripped = companyWebsite
+      .trim()
+      .replace(/^https?:\/\//i, '')
+      .replace(/^www\./i, '')
+      .split('/')[0]
+      .split('?')[0]
+      .toLowerCase()
+    if (stripped) return stripped
+  }
+  return email.split('@')[1]?.toLowerCase() ?? ''
+}
+
 export async function POST(req: NextRequest) {
   const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'unknown'
   const rl = await checkRateLimit(`beta_requests:${ip}`, 5, 15 * 60 * 1000)
@@ -23,7 +47,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid request body.' }, { status: 400 })
   }
 
-  const { name, email, company, position, useCase } = body as Record<string, string>
+  const { name, email, company, companyWebsite, position, useCase } = body as Record<string, string>
 
   if (!name?.trim() || !email?.trim() || !company?.trim()) {
     return NextResponse.json(
@@ -33,6 +57,8 @@ export async function POST(req: NextRequest) {
   }
 
   const emailLower = email.trim().toLowerCase()
+  const accountType = classifyEmail(emailLower)
+  const companyDomain = deriveDomain(companyWebsite, emailLower)
 
   try {
     const existing = await db.query.betaRequests.findFirst({
@@ -50,6 +76,9 @@ export async function POST(req: NextRequest) {
       name: name.trim(),
       email: emailLower,
       company: company.trim(),
+      companyWebsite: companyWebsite?.trim() || null,
+      companyDomain,
+      accountType,
       position: position?.trim() || null,
       useCase: useCase?.trim() || null,
       status: 'pending',
@@ -59,7 +88,27 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Failed to submit request.' }, { status: 500 })
   }
 
-  // Internal notification — fire and forget, don't fail the request if email fails
+  // Confirmation to submitter — fire and forget
+  resend.emails
+    .send({
+      from: FROM_EMAIL,
+      to: emailLower,
+      subject: 'VaultDoc beta request received',
+      html: `
+        <p>Hi ${name.trim()},</p>
+        <p>
+          Thank you for requesting access to VaultDoc. We have received your request
+          and will review it shortly. If approved, you will receive an invitation
+          link by email.
+        </p>
+        <p>— The VaultDoc team</p>
+      `,
+    })
+    .catch((err) => console.error('[beta-requests] confirmation email failed:', err))
+
+  const accountBadge = accountType === 'company' ? 'Business email' : 'Personal email'
+
+  // Internal notification — fire and forget
   resend.emails
     .send({
       from: FROM_EMAIL,
@@ -70,7 +119,10 @@ export async function POST(req: NextRequest) {
         <table style="border-collapse:collapse;width:100%;max-width:480px">
           <tr><td style="padding:8px 0;font-weight:600;color:#111">Name</td><td style="padding:8px 0;color:#374151">${name.trim()}</td></tr>
           <tr><td style="padding:8px 0;font-weight:600;color:#111">Email</td><td style="padding:8px 0;color:#374151">${emailLower}</td></tr>
+          <tr><td style="padding:8px 0;font-weight:600;color:#111">Account type</td><td style="padding:8px 0;color:#374151">${accountBadge} (${accountType})</td></tr>
           <tr><td style="padding:8px 0;font-weight:600;color:#111">Company</td><td style="padding:8px 0;color:#374151">${company.trim()}</td></tr>
+          <tr><td style="padding:8px 0;font-weight:600;color:#111">Domain</td><td style="padding:8px 0;color:#374151">${companyDomain}</td></tr>
+          ${companyWebsite?.trim() ? `<tr><td style="padding:8px 0;font-weight:600;color:#111">Website</td><td style="padding:8px 0;color:#374151">${companyWebsite.trim()}</td></tr>` : ''}
           ${position?.trim() ? `<tr><td style="padding:8px 0;font-weight:600;color:#111">Position</td><td style="padding:8px 0;color:#374151">${position.trim()}</td></tr>` : ''}
           ${useCase?.trim() ? `<tr><td style="padding:8px 0;font-weight:600;color:#111;vertical-align:top">Use case</td><td style="padding:8px 0;color:#374151">${useCase.trim()}</td></tr>` : ''}
         </table>

@@ -208,7 +208,7 @@ export default function RevisePreviewPage() {
         <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
           <p className="text-sm font-medium text-gray-900">Document content</p>
           <span className="inline-flex rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-700">
-            AI draft — review before saving
+            AI-generated draft — review before operational or audit use
           </span>
         </div>
         <div className="p-4">

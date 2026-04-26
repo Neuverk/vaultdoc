@@ -8,6 +8,9 @@ type BetaRequest = {
   name: string
   email: string
   company: string
+  companyWebsite: string | null
+  companyDomain: string | null
+  accountType: string
   position: string | null
   useCase: string | null
   status: string
@@ -124,9 +127,10 @@ export function BetaRequestsClient({ requests }: { requests: BetaRequest[] }) {
       {/* Table */}
       <div className="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
         {/* Table header */}
-        <div className="hidden lg:grid lg:grid-cols-[1fr_1fr_140px_120px_100px] gap-4 px-5 py-3 border-b border-gray-100 bg-gray-50">
+        <div className="hidden lg:grid lg:grid-cols-[1fr_1fr_110px_140px_120px_100px] gap-4 px-5 py-3 border-b border-gray-100 bg-gray-50">
           <div className="text-[11px] font-semibold uppercase tracking-widest text-gray-400">Applicant</div>
           <div className="text-[11px] font-semibold uppercase tracking-widest text-gray-400">Company / Role</div>
+          <div className="text-[11px] font-semibold uppercase tracking-widest text-gray-400">Type</div>
           <div className="text-[11px] font-semibold uppercase tracking-widest text-gray-400">Submitted</div>
           <div className="text-[11px] font-semibold uppercase tracking-widest text-gray-400">Status</div>
           <div />
@@ -142,7 +146,7 @@ export function BetaRequestsClient({ requests }: { requests: BetaRequest[] }) {
               const isExpanded = expandedId === r.id
               return (
                 <div key={r.id}>
-                  <div className="grid items-center gap-4 px-5 py-4 lg:grid-cols-[1fr_1fr_140px_120px_100px]">
+                  <div className="grid items-center gap-4 px-5 py-4 lg:grid-cols-[1fr_1fr_110px_140px_120px_100px]">
                     {/* Applicant */}
                     <div className="min-w-0">
                       <div className="text-sm font-semibold text-gray-900 truncate">{r.name}</div>
@@ -155,6 +159,11 @@ export function BetaRequestsClient({ requests }: { requests: BetaRequest[] }) {
                       {r.position && (
                         <div className="text-xs text-gray-500 truncate">{r.position}</div>
                       )}
+                    </div>
+
+                    {/* Account type */}
+                    <div>
+                      <AccountTypeBadge accountType={r.accountType} />
                     </div>
 
                     {/* Submitted */}
@@ -181,6 +190,33 @@ export function BetaRequestsClient({ requests }: { requests: BetaRequest[] }) {
                   {/* Expanded detail */}
                   {isExpanded && (
                     <div className="border-t border-gray-100 bg-gray-50 px-5 py-5 space-y-4">
+                      {/* Company / domain info */}
+                      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+                        <div>
+                          <div className="text-[11px] font-semibold uppercase tracking-widest text-gray-400 mb-1">Account type</div>
+                          <AccountTypeBadge accountType={r.accountType} />
+                        </div>
+                        {r.companyDomain && (
+                          <div>
+                            <div className="text-[11px] font-semibold uppercase tracking-widest text-gray-400 mb-1">Domain</div>
+                            <p className="text-sm text-gray-700 font-mono">{r.companyDomain}</p>
+                          </div>
+                        )}
+                        {r.companyWebsite && (
+                          <div>
+                            <div className="text-[11px] font-semibold uppercase tracking-widest text-gray-400 mb-1">Website</div>
+                            <a
+                              href={r.companyWebsite}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-sm text-blue-600 hover:underline truncate block max-w-[200px]"
+                            >
+                              {r.companyWebsite}
+                            </a>
+                          </div>
+                        )}
+                      </div>
+
                       {r.useCase && (
                         <div>
                           <div className="text-[11px] font-semibold uppercase tracking-widest text-gray-400 mb-1">Use case</div>
@@ -259,6 +295,21 @@ export function BetaRequestsClient({ requests }: { requests: BetaRequest[] }) {
         )}
       </div>
     </div>
+  )
+}
+
+function AccountTypeBadge({ accountType }: { accountType: string }) {
+  if (accountType === 'personal') {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full border border-gray-200 bg-gray-50 px-2 py-0.5 text-xs font-medium text-gray-600">
+        Personal email
+      </span>
+    )
+  }
+  return (
+    <span className="inline-flex items-center gap-1 rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700">
+      Business email
+    </span>
   )
 }
 

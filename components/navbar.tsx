@@ -26,6 +26,9 @@ export default async function Navbar() {
             <a href="/dashboard/billing" className="rounded-lg px-3 py-2 text-sm font-medium text-gray-600 transition hover:bg-gray-100 hover:text-gray-900">
               Billing
             </a>
+            <a href="/dashboard/account" className="rounded-lg px-3 py-2 text-sm font-medium text-gray-600 transition hover:bg-gray-100 hover:text-gray-900">
+              Account
+            </a>
             {isAdmin && (
               <a href="/dashboard/admin" className="rounded-lg px-3 py-2 text-sm font-medium text-gray-600 transition hover:bg-gray-100 hover:text-gray-900">
                 Admin

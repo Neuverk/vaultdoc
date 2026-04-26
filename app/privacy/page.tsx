@@ -145,23 +145,35 @@ export default function PrivacyPage() {
             <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
               <p className="mb-1 font-semibold">Important notice regarding AI processing</p>
               <p>
-                Document inputs you provide — including titles, department names, compliance
-                framework selections, and answers to guided questions — may be transmitted to
-                Anthropic&apos;s API to generate document outputs. Users should avoid submitting
-                passwords, special category personal data, or highly confidential information
-                unless and until an appropriate data processing and retention setup is confirmed.
+                VaultDoc uses AI to generate document drafts. The information you enter —
+                including document titles, department names, compliance framework selections,
+                scope descriptions, and answers to guided questions — may be transmitted to
+                our AI provider (Anthropic) to produce the output. Do not enter passwords,
+                secrets, special-category personal data (as defined under GDPR Article 9),
+                or highly confidential information when using document generation features.
+                Review all AI-generated content carefully before operational or audit use.
               </p>
             </div>
             <p className="mt-3">
-              Anthropic is a third-party AI provider based in the United States. Data transmitted
-              to Anthropic is subject to Anthropic&apos;s own privacy policy and terms of service.
-              We are in the process of establishing appropriate contractual safeguards for
-              international data transfers to Anthropic in accordance with GDPR Chapter V.
+              Anthropic is a third-party AI provider based in the United States. The transfer of
+              data to Anthropic is governed by Standard Contractual Clauses (SCCs) incorporated
+              into Anthropic&apos;s commercial API Terms of Service, which constitute the transfer
+              mechanism under GDPR Chapter V.
             </p>
             <p className="mt-3">
               We do not transmit your name, email address, payment information, or account
               credentials to Anthropic. Only the document content inputs described above are
-              transmitted for the purpose of AI generation.
+              transmitted, solely for the purpose of generating the requested document output.
+              Anthropic does not use API inputs to train its models. Inputs transmitted via the
+              API are subject to Anthropic&apos;s data retention policy, which provides for a
+              short-term retention window (up to 30 days) for trust and safety review, after
+              which inputs are deleted. Your data is not shared with any other third party beyond
+              what is necessary to provide the VaultDoc service.
+            </p>
+            <p className="mt-3">
+              VaultDoc&apos;s AI processing does not involve automated decision-making that produces
+              legal effects or similarly significantly affects you (GDPR Art. 22). The AI generates
+              draft documents for your review; all operational decisions remain with you.
             </p>
           </Section>
 
@@ -211,6 +223,21 @@ export default function PrivacyPage() {
                     <td className="px-4 py-3 text-gray-600">Application hosting and delivery</td>
                     <td className="px-4 py-3 text-gray-600">United States / EU</td>
                   </tr>
+                  <tr>
+                    <td className="px-4 py-3 font-medium text-gray-900">Resend</td>
+                    <td className="px-4 py-3 text-gray-600">Transactional email delivery</td>
+                    <td className="px-4 py-3 text-gray-600">United States</td>
+                  </tr>
+                  <tr>
+                    <td className="px-4 py-3 font-medium text-gray-900">Sentry</td>
+                    <td className="px-4 py-3 text-gray-600">Error monitoring and diagnostics</td>
+                    <td className="px-4 py-3 text-gray-600">Germany (EU)</td>
+                  </tr>
+                  <tr>
+                    <td className="px-4 py-3 font-medium text-gray-900">Upstash</td>
+                    <td className="px-4 py-3 text-gray-600">Rate limiting (processes IP addresses and user identifiers transiently)</td>
+                    <td className="px-4 py-3 text-gray-600">United States / EU</td>
+                  </tr>
                 </tbody>
               </table>
             </div>
@@ -242,6 +269,18 @@ export default function PrivacyPage() {
                 <span className="font-semibold text-gray-800">Stripe customer data:</span> Retained per Stripe&apos;s
                 retention policy; billing identifiers retained for the duration required by law.
               </li>
+              <li>
+                <span className="font-semibold text-gray-800">Database backups:</span> Automated
+                backups are retained for up to 7 days on a rolling basis, after which they are
+                permanently deleted. Data deleted from the primary database will be absent from
+                backups within this window.
+              </li>
+              <li>
+                <span className="font-semibold text-gray-800">AI processing inputs (Anthropic):</span>{' '}
+                Inputs transmitted to Anthropic&apos;s API are subject to Anthropic&apos;s retention
+                policy (up to 30 days for trust and safety review). They are not retained by
+                VaultDoc beyond the lifetime of your stored documents.
+              </li>
             </ul>
           </Section>
 
@@ -252,7 +291,8 @@ export default function PrivacyPage() {
               <a href="mailto:privacy@neuverk.com" className="text-blue-600 hover:underline">
                 privacy@neuverk.com
               </a>
-              .
+              . We will respond without undue delay and within one month of receiving your
+              request, as required by GDPR Art. 12.3.
             </p>
             <ul className="mt-3 space-y-2 text-sm text-gray-600">
               <li>

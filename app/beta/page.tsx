@@ -8,6 +8,7 @@ export default function BetaPage() {
     name: '',
     email: '',
     company: '',
+    companyWebsite: '',
     position: '',
     useCase: '',
   })
@@ -170,6 +171,20 @@ export default function BetaPage() {
                         value={form.company}
                         onChange={(e) => setForm((f) => ({ ...f, company: e.target.value }))}
                         placeholder="Acme GmbH"
+                        className="w-full rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-900 placeholder-gray-400 outline-none transition focus:border-gray-400 focus:ring-2 focus:ring-gray-100"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="mb-1.5 block text-sm font-medium text-gray-700">
+                        Company website{' '}
+                        <span className="font-normal text-gray-500">(optional)</span>
+                      </label>
+                      <input
+                        type="url"
+                        value={form.companyWebsite}
+                        onChange={(e) => setForm((f) => ({ ...f, companyWebsite: e.target.value }))}
+                        placeholder="https://acme.com"
                         className="w-full rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-900 placeholder-gray-400 outline-none transition focus:border-gray-400 focus:ring-2 focus:ring-gray-100"
                       />
                     </div>

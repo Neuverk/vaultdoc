@@ -183,12 +183,20 @@ export async function PATCH(
 
   // ── c) Persist approval — only reached when inviteUrl is confirmed ────────
 
+  // Workspace display name:
+  //   - company account → use the submitted company name
+  //   - personal account → use "{Full Name}'s Workspace" as a safe default
+  const workspaceName =
+    request.accountType === 'personal'
+      ? `${request.name}'s Workspace`
+      : request.company
+
   // Create the tenant now so betaRequests.tenantId is populated immediately.
   // bootstrapUser() will reuse this tenant on first sign-in; no second tenant is created.
   const [approvedTenant] = await db
     .insert(tenants)
     .values({
-      name: request.company,
+      name: workspaceName,
       slug: `beta-${request.id}`,
       plan: 'free',
     })

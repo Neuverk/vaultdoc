@@ -19,6 +19,14 @@ export const tenants = pgTable('tenants', {
 
   // Lifetime quota counter — never decremented on delete
   documentQuotaUsed: integer('document_quota_used').notNull().default(0),
+
+  // Beta quota — admin-controlled per tenant
+  betaDocumentLimit: integer('beta_document_limit').notNull().default(25),
+  betaLimitReachedAt: timestamp('beta_limit_reached_at'),
+  betaLimitEmailSentAt: timestamp('beta_limit_email_sent_at'),
+
+  // Soft archive — set by admin when workspace has 0 users and 0 docs
+  archivedAt: timestamp('archived_at'),
 }, (table) => [
   index('tenants_stripe_customer_id_idx').on(table.stripeCustomerId),
 ])
@@ -38,6 +46,12 @@ export const users = pgTable('users', {
   internalNote: text('internal_note'),
   lastActiveAt: timestamp('last_active_at'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
+
+  // Soft-delete fields — set on deletion scheduling, never nulled out
+  deletedAt: timestamp('deleted_at'),
+  deletionScheduledFor: timestamp('deletion_scheduled_for'),
+  deletionReason: text('deletion_reason'),
+  deletedBy: text('deleted_by'),
 }, (table) => [
   index('users_email_idx').on(table.email),
   index('users_tenant_id_idx').on(table.tenantId),
@@ -91,6 +105,9 @@ export const betaRequests = pgTable('beta_requests', {
   name: text('name').notNull(),
   email: text('email').notNull().unique(),
   company: text('company').notNull(),
+  companyWebsite: text('company_website'),
+  companyDomain: text('company_domain'),
+  accountType: text('account_type').notNull().default('company'), // personal | company
   position: text('position'), // job title / role
   useCase: text('use_case'),
   status: text('status').notNull().default('pending'), // pending | approved | rejected

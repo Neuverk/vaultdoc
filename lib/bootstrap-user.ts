@@ -39,6 +39,11 @@ export async function bootstrapUser({
     where: eq(users.clerkId, clerkUserId),
   })
 
+  if (user?.deletedAt) {
+    console.warn('[bootstrap] user scheduled for deletion — denying access:', user.email)
+    return null
+  }
+
   let tenant: TenantRow | null = user?.tenantId
     ? (await db.query.tenants.findFirst({
         where: eq(tenants.id, user.tenantId),
@@ -61,6 +66,11 @@ export async function bootstrapUser({
 
     if (byEmail.length === 1) {
       const existing = byEmail[0]
+
+      if (existing.deletedAt) {
+        console.warn('[bootstrap] email-matched user scheduled for deletion — denying access:', existing.email)
+        return null
+      }
 
       await db
         .update(users)

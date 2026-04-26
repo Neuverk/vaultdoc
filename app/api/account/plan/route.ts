@@ -1,7 +1,7 @@
 import { auth, currentUser } from '@clerk/nextjs/server'
 import { NextResponse } from 'next/server'
-import { PLANS } from '@/lib/plans'
 import { bootstrapUser } from '@/lib/bootstrap-user'
+import { BETA_DEFAULT_LIMIT } from '@/lib/beta-quota'
 
 export async function GET() {
   const { userId } = await auth()
@@ -26,11 +26,17 @@ export async function GET() {
   }
 
   const { tenant } = bootstrapped
-  const planKey = tenant.plan as keyof typeof PLANS
-  const maxDocuments = PLANS[planKey]?.maxDocuments ?? 3
   const quotaUsed = tenant.documentQuotaUsed ?? 0
-  const limit = maxDocuments === Infinity ? null : maxDocuments
-  const isAtLimit = maxDocuments !== Infinity && quotaUsed >= maxDocuments
+  const limit = tenant.betaDocumentLimit ?? BETA_DEFAULT_LIMIT
+  const remaining = Math.max(0, limit - quotaUsed)
+  const isAtLimit = quotaUsed >= limit
 
-  return NextResponse.json({ plan: tenant.plan, quotaUsed, limit, isAtLimit })
+  return NextResponse.json({
+    plan: tenant.plan,
+    quotaUsed,
+    limit,
+    remaining,
+    isAtLimit,
+    isBetaQuota: true,
+  })
 }
