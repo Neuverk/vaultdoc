@@ -4,7 +4,7 @@ import { users, documents, auditLogs } from '@/lib/db/schema'
 import { and, lt, gt, eq, isNull, isNotNull } from 'drizzle-orm'
 import { resend, FROM_EMAIL } from '@/lib/resend'
 import { createAuditLog } from '@/lib/audit'
-import { getReminderEmail } from '@/lib/email-templates'
+import { firstDocReminder } from '@/lib/email-templates'
 
 export const dynamic = 'force-dynamic'
 
@@ -55,11 +55,12 @@ export async function GET(req: NextRequest) {
     if (existing) continue
 
     try {
+      const reminderEmail = firstDocReminder({ to: user.email, firstName: user.firstName })
       await resend.emails.send({
         from: FROM_EMAIL,
         to: user.email,
-        subject: 'Ihr erstes Dokument wartet / Create your first document',
-        html: getReminderEmail(user.firstName),
+        subject: reminderEmail.subject,
+        html: reminderEmail.html,
       })
       sent++
     } catch (err) {

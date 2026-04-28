@@ -6,6 +6,7 @@ import { eq } from 'drizzle-orm'
 import { isPlatformAdmin } from '@/lib/admin'
 import { logAdminActivity } from '@/lib/admin-activity'
 import { resend, FROM_EMAIL } from '@/lib/resend'
+import { accountDeletionScheduled } from '@/lib/email-templates'
 import { revalidatePath } from 'next/cache'
 
 const VALID_ACTIONS = ['block', 'unblock', 'note', 'schedule-deletion'] as const
@@ -110,23 +111,19 @@ export async function PATCH(
       },
     })
 
-    resend.emails
+    const deletionEmail = accountDeletionScheduled({
+      to: user.email,
+      accountEmail: user.email,
+      deletionDate: deletionScheduledFor,
+      requestId: id,
+    })
+    void resend.emails
       .send({
         from: FROM_EMAIL,
         to: user.email,
-        subject: 'Your VaultDoc account has been scheduled for deletion',
-        html: `
-          <p>Hi${user.firstName ? ` ${user.firstName}` : ''},</p>
-          <p>
-            Your VaultDoc account has been scheduled for deletion. Access has been disabled,
-            and your data will be retained for 7 days before permanent deletion.
-          </p>
-          <p>
-            If this was a mistake, please contact VaultDoc support immediately by replying
-            to this email.
-          </p>
-          <p>— The VaultDoc team</p>
-        `,
+        replyTo: 'support@neuverk.com',
+        subject: deletionEmail.subject,
+        html: deletionEmail.html,
       })
       .catch((err) => console.error('[admin-delete] deletion email failed:', err))
   }

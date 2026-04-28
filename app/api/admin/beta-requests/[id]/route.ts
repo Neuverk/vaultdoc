@@ -7,7 +7,7 @@ import { isPlatformAdmin } from '@/lib/admin'
 import { resend, FROM_EMAIL } from '@/lib/resend'
 import { logAdminActivity } from '@/lib/admin-activity'
 import { revalidatePath } from 'next/cache'
-import { getBetaApprovedEmail } from '@/lib/email-templates'
+import { betaApproved } from '@/lib/email-templates'
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://vaultdoc.neuverk.com'
 const SIGNUP_URL = `${APP_URL}/sign-up`
@@ -226,12 +226,13 @@ export async function PATCH(
   revalidatePath('/dashboard/admin')
 
   // ── d) Send approval email ────────────────────────────────────────────────
-  resend.emails
+  const approvalEmail = betaApproved({ to: request.email, firstName: request.name, inviteUrl })
+  void resend.emails
     .send({
       from: FROM_EMAIL,
       to: request.email,
-      subject: "You're invited to VaultDoc",
-      html: getBetaApprovedEmail(request.name, inviteUrl, clerkUserExists),
+      subject: approvalEmail.subject,
+      html: approvalEmail.html,
     })
     .catch((err) => console.error('[beta-approve] welcome email failed:', err))
 

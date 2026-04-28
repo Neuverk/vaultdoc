@@ -4,6 +4,7 @@ import { db } from '@/lib/db'
 import { users } from '@/lib/db/schema'
 import { eq } from 'drizzle-orm'
 import { resend, FROM_EMAIL } from '@/lib/resend'
+import { accountDeletionScheduled } from '@/lib/email-templates'
 import { logAdminActivity } from '@/lib/admin-activity'
 import { checkRateLimit } from '@/lib/rate-limit'
 
@@ -63,23 +64,19 @@ export async function POST() {
     },
   })
 
-  resend.emails
+  const deletionEmail = accountDeletionScheduled({
+    to: email,
+    accountEmail: email,
+    deletionDate: deletionScheduledFor,
+    requestId: dbUser.id,
+  })
+  void resend.emails
     .send({
       from: FROM_EMAIL,
       to: email,
-      subject: 'Your VaultDoc account has been scheduled for deletion',
-      html: `
-        <p>Hi${clerkUser?.firstName ? ` ${clerkUser.firstName}` : ''},</p>
-        <p>
-          Your VaultDoc account has been scheduled for deletion. Access has been disabled,
-          and your data will be retained for 7 days before permanent deletion.
-        </p>
-        <p>
-          If this was a mistake, please contact VaultDoc support immediately by replying
-          to this email.
-        </p>
-        <p>— The VaultDoc team</p>
-      `,
+      replyTo: 'support@neuverk.com',
+      subject: deletionEmail.subject,
+      html: deletionEmail.html,
     })
     .catch((err) => console.error('[self-delete] deletion email failed:', err))
 

@@ -7,7 +7,9 @@ import { bootstrapUser } from '@/lib/bootstrap-user'
 import { sanitizeField, sanitizeStringArray } from '@/lib/sanitize'
 import { claimBetaDocumentSlot } from '@/lib/beta-quota'
 import { resend, FROM_EMAIL } from '@/lib/resend'
-import { getDocumentCreatedEmail } from '@/lib/email-templates'
+import { documentCreated } from '@/lib/email-templates'
+
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://vaultdoc.neuverk.com'
 
 const MAX_CONTENT_LENGTH = 100_000
 
@@ -136,12 +138,20 @@ export async function POST(req: NextRequest) {
       },
     })
 
-    resend.emails
+    const docEmail = documentCreated({
+      to: user.email,
+      firstName: user.firstName,
+      docTitle: title,
+      docId: doc.id,
+      createdAt: new Date(),
+      documentUrl: `${APP_URL}/dashboard/documents/${doc.id}`,
+    })
+    void resend.emails
       .send({
         from: FROM_EMAIL,
         to: user.email,
-        subject: 'Your document is ready',
-        html: getDocumentCreatedEmail(user.firstName, doc.id),
+        subject: docEmail.subject,
+        html: docEmail.html,
       })
       .catch((err) => console.error('[save] document created email failed:', err))
 
