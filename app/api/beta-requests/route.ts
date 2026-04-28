@@ -4,6 +4,7 @@ import { betaRequests } from '@/lib/db/schema'
 import { eq } from 'drizzle-orm'
 import { resend, FROM_EMAIL } from '@/lib/resend'
 import { checkRateLimit } from '@/lib/rate-limit'
+import { getBetaReceivedEmail } from '@/lib/email-templates'
 
 const ADMIN_NOTIFY_EMAIL = process.env.ADMIN_EMAIL ?? 'baijuamal97@gmail.com'
 
@@ -93,16 +94,8 @@ export async function POST(req: NextRequest) {
     .send({
       from: FROM_EMAIL,
       to: emailLower,
-      subject: 'VaultDoc beta request received',
-      html: `
-        <p>Hi ${name.trim()},</p>
-        <p>
-          Thank you for requesting access to VaultDoc. We have received your request
-          and will review it shortly. If approved, you will receive an invitation
-          link by email.
-        </p>
-        <p>— The VaultDoc team</p>
-      `,
+      subject: 'VaultDoc Beta Request Received',
+      html: getBetaReceivedEmail(name.trim()),
     })
     .catch((err) => console.error('[beta-requests] confirmation email failed:', err))
 

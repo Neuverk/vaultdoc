@@ -7,9 +7,9 @@ import { isPlatformAdmin } from '@/lib/admin'
 import { resend, FROM_EMAIL } from '@/lib/resend'
 import { logAdminActivity } from '@/lib/admin-activity'
 import { revalidatePath } from 'next/cache'
+import { getBetaApprovedEmail } from '@/lib/email-templates'
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://vaultdoc.neuverk.com'
-const DASHBOARD_URL = `${APP_URL}/dashboard`
 const SIGNUP_URL = `${APP_URL}/sign-up`
 const SIGNIN_URL = `${APP_URL}/sign-in`
 
@@ -29,8 +29,6 @@ export async function PATCH(
   if (!isPlatformAdmin(adminEmail)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
-  const email = adminEmail
-
   let body: unknown
   try {
     body = await req.json()
@@ -227,46 +225,13 @@ export async function PATCH(
   revalidatePath('/dashboard/admin/activity')
   revalidatePath('/dashboard/admin')
 
-  // ── d) Send approval email — one email, one button ────────────────────────
-  //
-  // inviteUrl is either the Clerk invitation acceptance URL (new users) or
-  // the sign-in URL (existing Clerk users). Either way the button label is
-  // accurate for what the user needs to do next.
-  const emailSubject = clerkUserExists
-    ? "You're in — Sign in to VaultDoc"
-    : "You're in — Set up your VaultDoc account"
-
-  const emailAction = clerkUserExists
-    ? 'Your account is ready. Click below to sign in:'
-    : 'Click the button below to create your account and get started. <strong>This link is single-use</strong> — keep it safe.'
-
-  const emailCta = clerkUserExists ? 'Sign in to VaultDoc →' : 'Set up your VaultDoc account →'
-
+  // ── d) Send approval email ────────────────────────────────────────────────
   resend.emails
     .send({
       from: FROM_EMAIL,
       to: request.email,
-      subject: emailSubject,
-      html: `
-        <p>Hi ${request.name},</p>
-        <p>
-          Great news — you've been approved for VaultDoc beta access.
-          VaultDoc helps enterprise teams generate audit-ready compliance
-          documentation aligned to ISO 27001, TISAX, SOC 2, GDPR, and more.
-        </p>
-        <p>${emailAction}</p>
-        <p style="margin:24px 0">
-          <a href="${inviteUrl}" style="background:#111;color:#fff;padding:12px 24px;border-radius:10px;text-decoration:none;font-weight:600;font-size:14px">
-            ${emailCta}
-          </a>
-        </p>
-        <p style="color:#6b7280;font-size:13px">
-          If the button doesn't work, copy and paste this link into your browser:<br>
-          <a href="${inviteUrl}" style="color:#374151">${inviteUrl}</a>
-        </p>
-        <p>If you have any questions, reply to this email and we'll help you get started.</p>
-        <p>— The VaultDoc team</p>
-      `,
+      subject: "You're invited to VaultDoc",
+      html: getBetaApprovedEmail(request.name, inviteUrl, clerkUserExists),
     })
     .catch((err) => console.error('[beta-approve] welcome email failed:', err))
 

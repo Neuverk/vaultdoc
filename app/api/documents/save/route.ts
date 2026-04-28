@@ -6,6 +6,8 @@ import { createAuditLog } from '@/lib/audit'
 import { bootstrapUser } from '@/lib/bootstrap-user'
 import { sanitizeField, sanitizeStringArray } from '@/lib/sanitize'
 import { claimBetaDocumentSlot } from '@/lib/beta-quota'
+import { resend, FROM_EMAIL } from '@/lib/resend'
+import { getDocumentCreatedEmail } from '@/lib/email-templates'
 
 const MAX_CONTENT_LENGTH = 100_000
 
@@ -133,6 +135,15 @@ export async function POST(req: NextRequest) {
         status: 'draft',
       },
     })
+
+    resend.emails
+      .send({
+        from: FROM_EMAIL,
+        to: user.email,
+        subject: 'Your document is ready',
+        html: getDocumentCreatedEmail(user.firstName, doc.id),
+      })
+      .catch((err) => console.error('[save] document created email failed:', err))
 
     return jsonResponse({ success: true, id: doc.id })
   } catch (error) {
