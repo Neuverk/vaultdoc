@@ -116,7 +116,7 @@ function makeFooter(extraNote?: string): string {
     <div style="font-size:11px;color:#7a756e;line-height:2">${linkHtml}</div>
     ${noteHtml}
     <div style="font-size:10px;color:#b0a898;font-family:'Courier New',Courier,monospace;margin-top:10px">
-      Neuverk UG (haftungsbeschränkt) &nbsp;&middot;&nbsp; Frankfurt am Main, Germany
+      Neuverk &nbsp;&middot;&nbsp; Munich, Germany
     </div>
   </div>`
 }
